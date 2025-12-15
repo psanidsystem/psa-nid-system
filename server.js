@@ -10,8 +10,22 @@ const { google } = require("googleapis");
 const { GoogleAuth } = require("google-auth-library");
 
 const app = express();
+
+// ===== Middlewares =====
 app.use(cors());
 app.use(express.json());
+
+// ✅ ROOT ROUTE (IMPORTANT FOR RENDER URL ACCESS)
+app.get("/", (req, res) => {
+  res
+    .status(200)
+    .send("✅ PSA NID System API is running. Try /api/provinces");
+});
+
+// ✅ Optional health check (useful for monitoring)
+app.get("/health", (req, res) => {
+  res.json({ ok: true, service: "psa-nid-system", time: new Date().toISOString() });
+});
 
 // ===== Google Sheets Setup (ENV JSON) =====
 function getCredentialsFromEnv() {
@@ -494,14 +508,22 @@ app.post("/api/trn-update", async (req, res) => {
   }
 });
 
-app.get("/", (req, res) => {
-  res.send("✅ PSA NID System API is running. Try /api/provinces");
+// ✅ 404 handler (keep this LAST among routes)
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route not found: ${req.method} ${req.originalUrl}`,
+  });
 });
 
+// ✅ error handler (keep LAST)
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err);
+  res.status(500).json({ success: false, message: "Internal server error." });
+});
 
 // ===== START SERVER =====
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("🔥 REAL server running on port " + PORT);
 });
-
