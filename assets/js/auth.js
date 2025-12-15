@@ -1,10 +1,7 @@
 // =======================
-// API AUTO-DETECT
+// API (same origin)
 // =======================
-const API =
-  location.hostname === "localhost"
-    ? "http://localhost:3000"
-    : "https://psa-nid-system.onrender.com";
+const API = location.origin;
 
 // =======================
 // ELEMENTS
@@ -40,7 +37,7 @@ loginTab.onclick = () => {
   hideMsg(regMsg);
 };
 
-registerTab.onclick = () => {
+registerTab.onclick = async () => {
   registerTab.classList.add("active");
   loginTab.classList.remove("active");
   registerForm.style.display = "block";
@@ -48,8 +45,8 @@ registerTab.onclick = () => {
   hideMsg(loginMsg);
   hideMsg(regMsg);
 
-  loadProvinces();
-  loadPositions();
+  await loadProvinces();
+  await loadPositions();
   checkAdminEligibility();
 };
 
@@ -88,7 +85,7 @@ async function loadProvinces() {
   const r = await fetch(API + "/api/provinces");
   const d = await r.json();
   (d.provinces || []).forEach(p => {
-    sel.innerHTML += `<option>${p}</option>`;
+    sel.innerHTML += `<option value="${p}">${p}</option>`;
   });
 }
 
@@ -98,18 +95,26 @@ async function loadPositions() {
   const r = await fetch(API + "/api/positions");
   const d = await r.json();
   (d.positions || []).forEach(p => {
-    sel.innerHTML += `<option>${p}</option>`;
+    sel.innerHTML += `<option value="${p}">${p}</option>`;
   });
 }
 
 // =======================
 // ADMIN ELIGIBILITY
 // =======================
+const regFirstName = document.getElementById("regFirstName");
+const regMiddleName = document.getElementById("regMiddleName");
+const regLastName = document.getElementById("regLastName");
+const regEmail = document.getElementById("regEmail");
+
 function setAdmin(show) {
   const sel = document.getElementById("regRole");
   const note = document.getElementById("adminNote");
 
-  [...sel.options].forEach(o => o.value === "admin" && sel.remove(o.index));
+  // remove existing admin option if present
+  [...sel.options].forEach(o => {
+    if (o.value === "admin") sel.remove(o.index);
+  });
 
   if (show) {
     sel.innerHTML += `<option value="admin">Admin</option>`;
@@ -123,10 +128,10 @@ function setAdmin(show) {
 
 async function checkAdminEligibility() {
   const body = {
-    firstName: regFirstName.value,
-    middleName: regMiddleName.value,
-    lastName: regLastName.value,
-    email: regEmail.value,
+    firstName: regFirstName.value.trim(),
+    middleName: regMiddleName.value.trim(),
+    lastName: regLastName.value.trim(),
+    email: regEmail.value.trim(),
   };
 
   if (!body.firstName || !body.lastName || !body.email) {
@@ -139,16 +144,21 @@ async function checkAdminEligibility() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
   const d = await r.json();
   setAdmin(!!d.eligible);
 }
 
-["regFirstName", "regMiddleName", "regLastName", "regEmail"]
-  .forEach(id => document.getElementById(id)?.addEventListener("input", checkAdminEligibility));
+["regFirstName", "regMiddleName", "regLastName", "regEmail"].forEach(id => {
+  document.getElementById(id)?.addEventListener("input", checkAdminEligibility);
+});
 
 // =======================
 // LOGIN
 // =======================
+const loginEmail = document.getElementById("loginEmail");
+const loginPassword = document.getElementById("loginPassword");
+
 loginForm.onsubmit = async e => {
   e.preventDefault();
   hideMsg(loginMsg);
@@ -161,33 +171,47 @@ loginForm.onsubmit = async e => {
       password: loginPassword.value
     }),
   });
-  const d = await r.json();
 
+  const d = await r.json();
   if (!d.success) return showMsg(loginMsg, d.message, "error");
 
-  localStorage.setItem("email", loginEmail.value);
+  localStorage.setItem("email", loginEmail.value.trim());
   localStorage.setItem("role", d.role);
-  location.href = d.role === "admin" ? "admin.html" : "user.html";
+
+  location.href = (d.role === "admin") ? "admin.html" : "user.html";
 };
 
 // =======================
 // REGISTER
 // =======================
+const regPassword = document.getElementById("regPassword");
+const regConfirm = document.getElementById("regConfirm");
+const regRole = document.getElementById("regRole");
+const regProvince = document.getElementById("regProvince");
+const regPosition = document.getElementById("regPosition");
+
 registerForm.onsubmit = async e => {
   e.preventDefault();
   hideMsg(regMsg);
 
   const viber = regViber.value.replace(/\D/g, "");
-  if (!/^09\d{9}$/.test(viber))
-    return showMsg(regMsg, "Invalid Viber number.", "error");
+  if (!/^09\d{9}$/.test(viber)) return showMsg(regMsg, "Invalid Viber number.", "error");
+
+  if (regPassword.value !== regConfirm.value) {
+    return showMsg(regMsg, "Passwords do not match.", "error");
+  }
+
+  if (!regPosition.value) return showMsg(regMsg, "Please select Position.", "error");
+  if (!regProvince.value) return showMsg(regMsg, "Please select Province.", "error");
+  if (!regRole.value) return showMsg(regMsg, "Please select Role.", "error");
 
   const body = {
-    email: regEmail.value,
+    email: regEmail.value.trim(),
     password: regPassword.value,
     role: regRole.value,
-    firstName: regFirstName.value,
-    middleName: regMiddleName.value,
-    lastName: regLastName.value,
+    firstName: regFirstName.value.trim(),
+    middleName: regMiddleName.value.trim(),
+    lastName: regLastName.value.trim(),
     viber,
     position: regPosition.value,
     province: regProvince.value,
@@ -198,10 +222,11 @@ registerForm.onsubmit = async e => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const d = await r.json();
 
+  const d = await r.json();
   if (!d.success) return showMsg(regMsg, d.message, "error");
 
-  showMsg(regMsg, "Account created successfully!", "success");
+  showMsg(regMsg, "Account created successfully! You can now login.", "success");
   registerForm.reset();
+  setAdmin(false);
 };
