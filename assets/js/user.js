@@ -1,7 +1,4 @@
-const API =
-  location.hostname === "localhost"
-    ? "http://localhost:3000"
-    : "https://psa-nid-system.onrender.com";
+const API = location.origin;
 
 let record = null;
 
@@ -14,7 +11,7 @@ document.getElementById("userEmail").textContent =
   const d = await r.json();
   const sel = document.getElementById("statusSelect");
   (d.statuses || []).forEach(s => {
-    sel.innerHTML += `<option>${s}</option>`;
+    sel.innerHTML += `<option value="${s}">${s}</option>`;
   });
 })();
 
@@ -28,15 +25,22 @@ document.getElementById("searchBtn").onclick = async () => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ trn }),
   });
+
   const d = await r.json();
   if (!d.success) return alert(d.message);
 
   record = d.record;
+
   detailWrap.style.display = "block";
   fullNameVal.textContent = record.fullname;
   permAddrVal.textContent = record.permanentAddress;
   recapStatusVal.textContent = record.recaptureStatus;
   recapSchedVal.textContent = record.recaptureSchedule;
+
+  // optional populate existing
+  if (record.status) statusSelect.value = record.status;
+  if (record.newTrn) newTrnInput.value = record.newTrn;
+  if (record.isoDateRecapture) dateRecapInput.value = record.isoDateRecapture;
 };
 
 // Save
@@ -54,6 +58,7 @@ document.getElementById("saveBtn").onclick = async () => {
       dateOfRecapture: dateRecapInput.value,
     }),
   });
+
   const d = await r.json();
   alert(d.success ? "Saved!" : d.message);
 };
