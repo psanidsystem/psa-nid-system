@@ -1,5 +1,5 @@
-// REAL SERVER — PSA System using Google Sheets (NO HASHING VERSION)
-// Includes: Provinces dropdown + Admin role validation + Failed Registration TRN Search + Update Q–S
+// REAL SERVER â€” PSA System using Google Sheets (NO HASHING VERSION)
+// Includes: Provinces dropdown + Admin role validation + Failed Registration TRN Search + Update Qâ€“S
 // Adds: Status dropdown from Dropdown!C2:C
 // Adds: Position dropdown from Dropdown!B2:B
 // Returns: Recapture Status & Schedule when TRN found
@@ -7,19 +7,36 @@
 const express = require("express");
 const cors = require("cors");
 const { google } = require("googleapis");
-const path = require("path");
+const { GoogleAuth } = require("google-auth-library");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ===== Google Sheets Setup =====
-const KEYFILEPATH = path.join(__dirname, "service-account-key.json");
-const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
+// ===== Google Sheets Setup (ENV JSON) =====
+function getCredentialsFromEnv() {
+  const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 
-const auth = new google.auth.GoogleAuth({
-  keyFile: KEYFILEPATH,
-  scopes: SCOPES,
+  if (!raw) {
+    throw new Error(
+      "Missing env GOOGLE_APPLICATION_CREDENTIALS_JSON. Add it in Render Environment Variables."
+    );
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    throw new Error(
+      "Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON. Make sure you pasted the full service account JSON correctly."
+    );
+  }
+}
+
+const credentials = getCredentialsFromEnv();
+
+const auth = new GoogleAuth({
+  credentials,
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 
 // ===== Your Google Sheet =====
@@ -72,7 +89,7 @@ async function addLog(action, email, details = "") {
   });
 }
 
-// Ensure Accounts columns exist (A–L)
+// Ensure Accounts columns exist (Aâ€“L)
 async function ensureColumns() {
   const sheets = await getClient();
 
@@ -101,7 +118,7 @@ async function ensureColumns() {
   await ensureLogsSheet(sheets);
 }
 
-// Load accounts (A–L)
+// Load accounts (Aâ€“L)
 async function loadAccounts() {
   const sheets = await getClient();
   await ensureColumns();
@@ -180,6 +197,8 @@ async function updateLastLogin(email) {
   const rowNumber = index + 2;
   const now = new Date().toISOString();
 
+  // NOTE: Your columns are:
+  // F = UpdatedAt, G = LastLogin
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     range: `${sheetAccounts}!F${rowNumber}:G${rowNumber}`,
@@ -190,7 +209,7 @@ async function updateLastLogin(email) {
   await addLog("Login", email, "User logged in");
 }
 
-// ? Admin role allowed only if match exists in Admin sheet (A=FN, B=MN, C=LN, D=Email)
+// Admin role allowed only if match exists in Admin sheet (A=FN, B=MN, C=LN, D=Email)
 async function isAuthorizedAdmin(firstName, middleName, lastName, email) {
   const sheets = await getClient();
 
@@ -243,7 +262,6 @@ function tryParseDecStyleToISO(text) {
 app.get("/api/provinces", async (req, res) => {
   try {
     const sheets = await getClient();
-
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${sheetDropdown}!D2:D`,
@@ -254,19 +272,17 @@ app.get("/api/provinces", async (req, res) => {
       .map((r) => (r[0] || "").trim())
       .filter((v) => v.length > 0);
 
-    const unique = [...new Set(provinces)];
-    res.json({ success: true, provinces: unique });
+    res.json({ success: true, provinces: [...new Set(provinces)] });
   } catch (err) {
-    console.error("Error in GET /api/provinces:", err);
+    console.error("Error in GET /api/provinces:", err.message || err);
     res.status(500).json({ success: false, message: "Error reading provinces." });
   }
 });
 
-// ? GET positions (Dropdown!B2:B)
+// GET positions (Dropdown!B2:B)
 app.get("/api/positions", async (req, res) => {
   try {
     const sheets = await getClient();
-
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${sheetDropdown}!B2:B`,
@@ -277,19 +293,17 @@ app.get("/api/positions", async (req, res) => {
       .map((r) => (r[0] || "").trim())
       .filter((v) => v.length > 0);
 
-    const unique = [...new Set(positions)];
-    res.json({ success: true, positions: unique });
+    res.json({ success: true, positions: [...new Set(positions)] });
   } catch (err) {
-    console.error("Error in GET /api/positions:", err);
+    console.error("Error in GET /api/positions:", err.message || err);
     res.status(500).json({ success: false, message: "Error reading positions." });
   }
 });
 
-// ? GET status options (Dropdown!C2:C)
+// GET status options (Dropdown!C2:C)
 app.get("/api/status-options", async (req, res) => {
   try {
     const sheets = await getClient();
-
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${sheetDropdown}!C2:C`,
@@ -300,10 +314,9 @@ app.get("/api/status-options", async (req, res) => {
       .map((r) => (r[0] || "").trim())
       .filter((v) => v.length > 0);
 
-    const unique = [...new Set(statuses)];
-    res.json({ success: true, statuses: unique });
+    res.json({ success: true, statuses: [...new Set(statuses)] });
   } catch (err) {
-    console.error("Error in GET /api/status-options:", err);
+    console.error("Error in GET /api/status-options:", err.message || err);
     res.status(500).json({ success: false, message: "Error reading status options." });
   }
 });
@@ -337,7 +350,7 @@ app.post("/api/register", async (req, res) => {
     await saveAccount({ email, password, role, firstName, middleName, lastName, viber, province });
     res.json({ success: true });
   } catch (err) {
-    console.error("Error in POST /api/register:", err);
+    console.error("Error in POST /api/register:", err.message || err);
     res.status(500).json({ success: false, message: "Server error." });
   }
 });
@@ -361,7 +374,7 @@ app.post("/api/login", async (req, res) => {
     await updateLastLogin(email);
     res.json({ success: true, role: user.role });
   } catch (err) {
-    console.error("Error in POST /api/login:", err);
+    console.error("Error in POST /api/login:", err.message || err);
     res.status(500).json({ success: false, message: "Server error." });
   }
 });
@@ -375,7 +388,7 @@ app.post("/api/admin-eligible", async (req, res) => {
     const eligible = await isAuthorizedAdmin(firstName, middleName, lastName, email);
     return res.json({ success: true, eligible });
   } catch (err) {
-    console.error("Error in POST /api/admin-eligible:", err);
+    console.error("Error in POST /api/admin-eligible:", err.message || err);
     return res.status(500).json({ success: false, eligible: false });
   }
 });
@@ -410,14 +423,6 @@ app.post("/api/trn-search", async (req, res) => {
     const row = rows[index] || [];
     const rowNumber = index + 2;
 
-    // Columns (0-based):
-    // C2 Fullname
-    // F5 Permanent Address
-    // L11 Recapture Status
-    // M12 Recapture Schedule
-    // Q16 Status
-    // R17 NEW TRN
-    // S18 Date of Recapture
     const record = {
       rowNumber,
       trn: row[1] || "",
@@ -433,7 +438,7 @@ app.post("/api/trn-search", async (req, res) => {
 
     return res.json({ success: true, record });
   } catch (err) {
-    console.error("Error in POST /api/trn-search:", err);
+    console.error("Error in POST /api/trn-search:", err.message || err);
     return res.status(500).json({ success: false, message: "Server error while searching TRN." });
   }
 });
@@ -449,13 +454,9 @@ app.post("/api/trn-update", async (req, res) => {
     const cleanTrn = String(trn || "").trim();
     if (!/^\d{29}$/.test(cleanTrn)) return res.json({ success: false, message: "Invalid TRN format." });
 
-    // ? Status required
     const cleanStatus = String(status || "").trim();
-    if (!cleanStatus) {
-      return res.json({ success: false, message: "Status is required." });
-    }
+    if (!cleanStatus) return res.json({ success: false, message: "Status is required." });
 
-    // ? NEW TRN validation (if provided, must be 29 digits)
     const cleanNewTrn = String(newTrn || "").trim();
     if (cleanNewTrn && !/^\d{29}$/.test(cleanNewTrn)) {
       return res.json({ success: false, message: "NEW TRN must be 29 digits (or leave blank)." });
@@ -488,7 +489,7 @@ app.post("/api/trn-update", async (req, res) => {
     await addLog("TRN Update", "system", `TRN: ${cleanTrn} | Row: ${rn} | QRS updated`);
     return res.json({ success: true });
   } catch (err) {
-    console.error("Error in POST /api/trn-update:", err);
+    console.error("Error in POST /api/trn-update:", err.message || err);
     return res.status(500).json({ success: false, message: "Server error while saving update." });
   }
 });
@@ -496,5 +497,5 @@ app.post("/api/trn-update", async (req, res) => {
 // ===== START SERVER =====
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log("?? REAL server running on port " + PORT);
+  console.log("ðŸ”¥ REAL server running on port " + PORT);
 });
