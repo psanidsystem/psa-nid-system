@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin Dashboard • PhilSys</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div class="sidebar">
+    <h2 class="side-title">Admin Panel</h2>
+    <a class="side-link active">User Accounts</a>
+    <a class="side-link" id="logoutBtn">Logout</a>
+</div>
+
+<div class="main">
+    <h1>Account Management</h1>
+    <p>Manage all PhilSys users stored in Google Sheets.</p>
+
+    <div class="card">
+        <input type="text" id="searchBox" class="search" placeholder="Search by email...">
+        <table class="styled-table">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Last Login</th>
+                </tr>
+            </thead>
+            <tbody id="accountsTable"></tbody>
+        </table>
+    </div>
+</div>
+
+<script src="assets/js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PSA • PhilSys Portal</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="centered auth-bg">
+
+  <div class="auth-box">
+    <!-- Logos -->
+    <div class="logo-row">
+      <div class="logo-wrap">
+        <img src="assets/images/psa.png" alt="PSA Logo">
+      </div>
+      <div class="logo-wrap">
+        <img src="assets/images/philsys.png" alt="PhilSys Logo">
+      </div>
+    </div>
+	  <h1 class="title" style="font-size: 12px;">Philippine Statistics Authority</h1>
+    <h1 class="title">National ID System</h1>
+    <p class="subtitle">Secure Login • Powered by Google Sheets</p>
+
+    <div class="tabs">
+      <button id="loginTab" class="tab active" type="button">Login</button>
+      <button id="registerTab" class="tab" type="button">Register</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <form id="loginForm" class="form">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="name@example.gov.ph" required>
+
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="Enter your password" required>
+
+      <button type="submit" class="btn-primary">Login</button>
+      <p id="loginMsg" class="msg hidden"></p>
+    </form>
+
+    <!-- REGISTER FORM -->
+    <form id="registerForm" class="form" style="display:none;">
+
+      <div class="form-row">
+        <div>
+          <label>First Name</label>
+          <input type="text" id="regFirstName" required>
+        </div>
+        <div>
+          <label>Middle Name</label>
+          <input type="text" id="regMiddleName" placeholder="Optional">
+        </div>
+      </div>
+
+      <label>Last Name</label>
+      <input type="text" id="regLastName" required>
+
+      <label>Email</label>
+      <input type="email" id="regEmail" required>
+
+      <label for="regViber">Viber Number</label>
+<input
+  id="regViber"
+  type="text"
+  inputmode="numeric"
+  maxlength="11"
+  placeholder="09XXXXXXXXX"
+  required
+/>
+
+		
+		<label>Position</label>
+<select id="regPosition" required>
+  <option value="">-- Select Position --</option>
+</select>
+
+
+      <label>Province</label>
+      <select id="regProvince" required>
+        <option value="">-- Select Province --</option>
+      </select>
+
+      <label>Password</label>
+      <input type="password" id="regPassword" required>
+
+      <label>Confirm Password</label>
+      <input type="password" id="regConfirm" required>
+
+      <label>Role</label>
+      <!-- IMPORTANT: default User only; Admin will be injected if eligible -->
+      <select id="regRole" required>
+        <option value="">-- Select Role --</option>
+        <option value="user">User</option>
+      </select>
+
+      <!-- note for admin eligibility -->
+      <div id="adminNote" class="note bad">Admin role requires authorization.</div>
+
+      <button type="submit" class="btn-primary">Create Account</button>
+      <p id="regMsg" class="msg hidden"></p>
+    </form>
+
+    <div class="auth-footer">
+      © 2025 Philippine Statistics Authority • National ID System
+    </div>
+  </div>
+
+  <script src="assets/js/auth.js"></script>
+</body>
+</html>

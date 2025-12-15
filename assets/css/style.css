@@ -1,0 +1,298 @@
+/* ===== Base ===== */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #eef2f7;
+  color: #111827;
+}
+
+.auth-bg {
+  background: radial-gradient(1200px 500px at 50% -10%, rgba(76,110,245,0.25), transparent 60%),
+              linear-gradient(135deg, #f5f8ff, #eef2f7);
+}
+
+.centered {
+  display: flex;
+  min-height: 100vh;
+  justify-content: center;
+  align-items: center;
+  padding: 18px;
+}
+
+/* ===== Auth Card ===== */
+.auth-box {
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(8px);
+  padding: 28px 26px 18px;
+  width: 380px;
+  max-width: 100%;
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+  border: 1px solid rgba(17,24,39,0.06);
+}
+
+.title {
+  margin: 6px 0 0;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.subtitle {
+  text-align: center;
+  margin: 6px 0 18px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* ===== Logos ===== */
+.logo-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.logo-wrap {
+  height: 54px;
+  width: 54px;
+  border-radius: 999px;
+  background: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+.logo-row img {
+  height: 42px;
+  width: 42px;
+  object-fit: contain;
+}
+
+/* ===== Tabs ===== */
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  background: #eef2ff;
+  padding: 4px;
+  border-radius: 999px;
+}
+
+.tab {
+  flex: 1;
+  padding: 9px 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 999px;
+  font-weight: 700;
+  color: #334155;
+  transition: background 0.2s, color 0.2s, transform 0.08s;
+}
+
+.tab:hover { transform: translateY(-1px); }
+
+.tab.active {
+  background: #4c6ef5;
+  color: white;
+  box-shadow: 0 8px 16px rgba(76,110,245,0.25);
+}
+
+/* ===== Forms ===== */
+.form label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151;
+  margin: 10px 0 6px;
+}
+
+input, select {
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  font-size: 14px;
+  transition: border 0.15s, box-shadow 0.15s;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: #4c6ef5;
+  box-shadow: 0 0 0 3px rgba(76,110,245,0.18);
+}
+
+/* ===== Buttons ===== */
+.btn-primary {
+  width: 100%;
+  background: #4c6ef5;
+  padding: 12px;
+  border: none;
+  color: white;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 800;
+  margin-top: 14px;
+  box-shadow: 0 10px 18px rgba(76,110,245,0.22);
+  transition: transform 0.08s, filter 0.2s;
+}
+
+.btn-primary:hover { filter: brightness(0.97); }
+.btn-primary:active { transform: translateY(1px); }
+
+/* ===== Messages ===== */
+.msg {
+  text-align: center;
+  font-size: 13px;
+  margin: 12px 0 0;
+  padding: 10px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+}
+
+.msg.error {
+  background: #fff1f2;
+  color: #b91c1c;
+  border-color: #fecdd3;
+}
+
+.msg.success {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.hidden { display: none; }
+
+/* Footer */
+.auth-footer{
+  margin-top: 16px;
+  text-align: center;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+/* ===== Existing Admin/User styles (kept) ===== */
+.sidebar {
+  width: 220px;
+  height: 100vh;
+  background: #1f2937;
+  color: white;
+  padding: 20px;
+  position: fixed;
+}
+.side-title { font-size: 20px; margin-bottom: 20px; }
+.side-link {
+  display: block;
+  color: #d1d5db;
+  text-decoration: none;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.side-link.active, .side-link:hover {
+  background: #374151;
+  color: white;
+}
+
+.main {
+  margin-left: 240px;
+  padding: 30px;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+}
+
+.styled-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.styled-table th {
+  background: #4c6ef5;
+  color: white;
+  padding: 10px;
+}
+
+.styled-table td {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+.search {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  border: 1px solid #aaa;
+}
+
+/* Responsive small screens */
+@media (max-width: 420px) {
+  .auth-box { padding: 22px 18px 16px; }
+  .title { font-size: 20px; }
+}
+
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.form-row > div {
+  flex: 1;
+}
+
+@media (max-width: 480px) {
+  .form-row {
+    flex-direction: column;
+  }
+}
+
+.note{
+  margin-top: 6px;
+  font-size: 12px;
+  text-align: center;
+}
+.note.ok{ color:#065f46; }
+.note.bad{ color:#b91c1c; }
+.form-row{ display:flex; gap:10px; }
+.form-row > div{ flex:1; }
+@media (max-width:480px){ .form-row{ flex-direction:column; } }
+
+/* ===== FIXED WIDTH (TRN Search + Status + Date) ===== */
+.fixed-width{
+  width: 180px;   /* 🔧 USBA DIRI: 320 / 340 / 360 / 400 */
+  max-width: none;
+}
+
+/* apply fixed width to TRN search bar */
+#trnInput{
+  width: 180px;   /* 🔧 same value */
+  max-width: none;
+}
+
+/* apply fixed width to Status + Date + New TRN (if you want same width) */
+#statusSelect,
+#newTrnInput,
+#dateRecapInput{
+  width: 180px;   /* 🔧 same value */
+  max-width: none;
+}
+
+.invalid{
+  border-color:#ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.20) !important;
+}

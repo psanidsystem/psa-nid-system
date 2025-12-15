@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PSA • User Portal</title>
+  <style>
+    :root{
+      --primary:#0033a0;
+      --primary2:#0056d6;
+      --bg:#f4f7ff;
+      --card:#ffffff;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --border:#e5e7eb;
+      --shadow: 0 10px 25px rgba(0,0,0,0.08);
+      --radius: 14px;
+      --okbg:#eaf7ef;
+      --okbd:#bfe7cb;
+      --ok:#0f5132;
+      --errbg:#fdecec;
+      --errbd:#f2b8b8;
+      --err:#842029;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* Header */
+    .topbar{
+      position: sticky;
+      top:0;
+      z-index: 10;
+      background: linear-gradient(90deg, var(--primary), var(--primary2));
+      color:#fff;
+      padding: 12px 18px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+    }
+    .topbar-inner{
+      max-width: 1400px;
+      margin: 0 auto;
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap: 12px;
+      min-width: 260px;
+    }
+    .logos{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+    }
+    .logo{
+      height: 42px;
+      width: 42px;
+      border-radius: 50%;
+      background:#fff;
+      padding: 4px;
+      object-fit: contain;
+    }
+    .brand-text h1{
+      margin:0;
+      font-size: 16px;
+      letter-spacing: 0.2px;
+    }
+    .brand-text p{
+      margin:2px 0 0;
+      font-size: 12px;
+      opacity: 0.9;
+    }
+    .user-pill{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.22);
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .user-pill .dot{
+      height:8px; width:8px;
+      border-radius:50%;
+      background:#22c55e;
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.22);
+    }
+
+    /* Layout */
+    .layout{
+      max-width: 1400px;
+      margin: 18px auto;
+      padding: 0 14px;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 16px;
+    }
+
+    /* Sidebar */
+    .sidebar{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      height: calc(100vh - 110px);
+      position: sticky;
+      top: 78px;
+      overflow:auto;
+    }
+    .side-title{
+      font-weight: 800;
+      color: var(--primary);
+      margin: 4px 0 12px;
+      font-size: 14px;
+    }
+    .nav{
+      display:flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .nav button{
+      width:100%;
+      text-align:left;
+      border: 1px solid var(--border);
+      background:#f8fbff;
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      font-weight: 700;
+      color:#0f172a;
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+      transition: transform .06s ease, background .2s ease, border .2s ease;
+    }
+    .nav button:hover{
+      background:#eef5ff;
+      border-color:#cfe0ff;
+    }
+    .nav button:active{
+      transform: translateY(1px);
+    }
+    .nav button.active{
+      background: linear-gradient(90deg, rgba(0,51,160,0.12), rgba(0,86,214,0.10));
+      border-color: rgba(0,51,160,0.28);
+      color: var(--primary);
+    }
+    .nav small{
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .logout{
+      margin-top: 12px;
+      border-top: 1px dashed var(--border);
+      padding-top: 12px;
+    }
+    .logout a{
+      display:block;
+      text-decoration:none;
+      text-align:center;
+      background:#fff;
+      border: 1px solid #f1b4b4;
+      color:#b91c1c;
+      font-weight: 800;
+      padding: 10px 12px;
+      border-radius: 12px;
+    }
+    .logout a:hover{
+      background:#fff5f5;
+    }
+
+    /* Main */
+    .main{
+      display:flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: calc(100vh - 110px);
+    }
+    .card{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+    .card h2{
+      margin: 0 0 6px;
+      color: var(--primary);
+      font-size: 18px;
+    }
+    .card p{
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* Sections */
+    .section{ display:none; }
+    .section.active{ display:block; }
+
+    /* TRN Search UI */
+    .search-header{
+      display:flex;
+      align-items:flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .search-row{
+      margin-top: 12px;
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      flex-wrap: wrap;
+    }
+    .search-input{
+      flex: 1;
+      min-width: 240px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 12px;
+      font-size: 14px;
+      outline: none;
+    }
+    .search-input:focus{
+      border-color: rgba(0,51,160,0.35);
+      box-shadow: 0 0 0 3px rgba(0,51,160,0.12);
+    }
+    .btn{
+      border: none;
+      border-radius: 12px;
+      padding: 12px 16px;
+      background: var(--primary);
+      color: white;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 6px 14px rgba(0,51,160,0.22);
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+    }
+    .btn:hover{ filter: brightness(0.96); }
+    .btn.secondary{
+      background:#e9f0ff;
+      color: var(--primary);
+      border: 1px solid #cfe0ff;
+      box-shadow: none;
+    }
+    .btn:disabled{
+      opacity:.65;
+      cursor:not-allowed;
+      box-shadow:none;
+    }
+
+    .spinner{
+      width:16px;
+      height:16px;
+      border-radius:50%;
+      border:2px solid rgba(255,255,255,0.55);
+      border-top-color:#fff;
+      animation: spin 0.8s linear infinite;
+      display:none;
+    }
+    .btn.loading .spinner{ display:inline-block; }
+
+    @keyframes spin{
+      to { transform: rotate(360deg); }
+    }
+
+    .alert{
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      font-size: 13px;
+      display:none;
+    }
+    .alert.ok{
+      display:block;
+      background: var(--okbg);
+      border-color: var(--okbd);
+      color: var(--ok);
+      font-weight: 700;
+    }
+    .alert.err{
+      display:block;
+      background: var(--errbg);
+      border-color: var(--errbd);
+      color: var(--err);
+      font-weight: 700;
+    }
+
+    /* Detail summary (4 cards) */
+    .detail-grid{
+      margin-top: 12px;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .detail-item{
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background:#fbfdff;
+    }
+    .detail-item .label{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .detail-item .value{
+      font-size: 14px;
+      font-weight: 800;
+      color:#0f172a;
+      word-break: break-word;
+    }
+
+    /* Update fields Q-R-S */
+    .form-grid{
+      margin-top: 12px;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .field{
+      display:flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .field label{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .field input, .field select{
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 12px;
+      font-size: 14px;
+      outline:none;
+      background:#fff;
+    }
+    .field input:focus, .field select:focus{
+      border-color: rgba(0,51,160,0.35);
+      box-shadow: 0 0 0 3px rgba(0,51,160,0.12);
+    }
+    .actions{
+      margin-top: 12px;
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items:center;
+    }
+
+    /* Responsive */
+    @media (max-width: 950px){
+      .layout{ grid-template-columns: 1fr; }
+      .sidebar{ height:auto; position: relative; top:auto; }
+      .detail-grid{ grid-template-columns: 1fr; }
+      .form-grid{ grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logos">
+          <img class="logo" src="assets/images/psa.png" alt="PSA Logo">
+          <img class="logo" src="assets/images/philsys.png" alt="PhilSys Logo">
+        </div>
+        <div class="brand-text">
+          <h1>PSA • National ID System</h1>
+          <p>Standard User View</p>
+        </div>
+      </div>
+
+      <div class="user-pill" title="Logged in user">
+        <span class="dot"></span>
+        <span id="userEmail">user@example.gov.ph</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="side-title">User Menu</div>
+
+      <nav class="nav">
+        <button id="btnHome" class="active" type="button">
+          Home <small>Overview</small>
+        </button>
+
+        <button id="btnSearch" type="button">
+          Search <small>TRN Lookup</small>
+        </button>
+      </nav>
+
+      <div class="logout">
+        <a href="index.html">← Logout</a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <!-- HOME -->
+      <section id="homeSection" class="section active">
+        <div class="card">
+          <h2>Welcome!</h2>
+          <p>You are logged in as a registered user. This portal is intended for official PhilSys transactions.</p>
+        </div>
+
+        <div class="card">
+          <h2>Your PhilSys Information</h2>
+          <p>This section will display your personal data and status in future updates.</p>
+        </div>
+      </section>
+
+      <!-- SEARCH -->
+      <section id="searchSection" class="section">
+        <div class="card">
+          <div class="search-header">
+            <div>
+              <h2 style="margin:0;color:var(--primary);">TRN Search</h2>
+              <p style="margin-top:6px;">Enter the <b>29-digit TRN</b></p>
+            </div>
+          </div>
+
+          <div class="search-row">
+            <input id="trnInput" class="search-input" type="text" inputmode="numeric" placeholder="29-digit TRN" maxlength="29"/>
+            <button class="btn" id="searchBtn" type="button">Search</button>
+            <button class="btn secondary" id="clearBtn" type="button">Clear</button>
+          </div>
+
+          <div id="msgOk" class="alert ok"></div>
+          <div id="msgErr" class="alert err"></div>
+
+          <!-- Found detail -->
+          <div id="detailWrap" style="display:none;">
+            <div class="detail-grid">
+              <div class="detail-item">
+                <div class="label">Fullname</div>
+                <div id="fullNameVal" class="value">—</div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Permanent Address</div>
+                <div id="permAddrVal" class="value">—</div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Recapture Status</div>
+                <div id="recapStatusVal" class="value">—</div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Recapture Schedule</div>
+                <div id="recapSchedVal" class="value">—</div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:14px;padding:14px;">
+              <h2 style="margin:0 0 6px;color:var(--primary);font-size:16px;">Update Fields</h2>
+              <p style="margin:0;color:var(--muted);font-size:12px;">
+               </p>
+
+              <div class="form-grid">
+                <div class="field">
+                  <label for="statusSelect">Status <span style="color:#b91c1c;">*</span></label>
+                  <select id="statusSelect" required>
+                    <option value="">-- Select Status --</option>
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label for="newTrnInput">New TRN (29 digits)</label>
+                  <input id="newTrnInput" type="text" inputmode="numeric" maxlength="29" placeholder="Enter (29 digits)"/>
+                </div>
+
+                <div class="field" style="grid-column: 1 / -1;">
+                  <label for="dateRecapInput">Date of Recapture</label>
+                  <input id="dateRecapInput" type="date"/>
+                </div>
+              </div>
+
+              <div class="actions">
+                <button class="btn" id="saveBtn" type="button">
+                  <span class="spinner" id="saveSpinner"></span>
+                  <span id="saveText">Save</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="assets/js/user.js"></script>
+</body>
+</html>
