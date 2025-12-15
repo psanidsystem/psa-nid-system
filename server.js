@@ -494,8 +494,14 @@ app.post("/api/trn-update", async (req, res) => {
   }
 });
 
+app.get("/", (req, res) => {
+  res.send("✅ PSA NID System API is running. Try /api/provinces");
+});
+
+
 // ===== START SERVER =====
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("🔥 REAL server running on port " + PORT);
 });
+
