@@ -1,38 +1,36 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Admin Dashboard • PhilSys</title>
-<link rel="stylesheet" href="assets/css/style.css">
-</head>
-<body>
+const API =
+  location.hostname === "localhost"
+    ? "http://localhost:3000"
+    : "https://psa-nid-system.onrender.com";
 
-<div class="sidebar">
-    <h2 class="side-title">Admin Panel</h2>
-    <a class="side-link active">User Accounts</a>
-    <a class="side-link" id="logoutBtn">Logout</a>
-</div>
+async function load() {
+  const r = await fetch(API + "/api/accounts");
+  const a = await r.json();
+  const tb = document.getElementById("accountsTable");
+  tb.innerHTML = "";
+  a.forEach(u => {
+    tb.innerHTML += `
+      <tr>
+        <td>${u.email}</td>
+        <td>${u.role}</td>
+        <td>${u.status}</td>
+        <td>${u.lastLogin || "—"}</td>
+      </tr>`;
+  });
+}
 
-<div class="main">
-    <h1>Account Management</h1>
-    <p>Manage all PhilSys users stored in Google Sheets.</p>
+document.getElementById("searchBox").oninput = async e => {
+  const q = e.target.value.toLowerCase();
+  const r = await fetch(API + "/api/accounts");
+  const a = await r.json();
+  accountsTable.innerHTML = "";
+  a.filter(x => x.email.toLowerCase().includes(q))
+   .forEach(load);
+};
 
-    <div class="card">
-        <input type="text" id="searchBox" class="search" placeholder="Search by email...">
-        <table class="styled-table">
-            <thead>
-                <tr>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Last Login</th>
-                </tr>
-            </thead>
-            <tbody id="accountsTable"></tbody>
-        </table>
-    </div>
-</div>
+document.getElementById("logoutBtn").onclick = () => {
+  localStorage.clear();
+  location.href = "index.html";
+};
 
-<script src="assets/js/admin.js"></script>
-</body>
-</html>
+load();
