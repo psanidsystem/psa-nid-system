@@ -2,8 +2,16 @@ const API = location.origin;
 
 let record = null;
 
-// Elements
+// ===== Elements (Nav + Sections) =====
+const btnHome = document.getElementById("btnHome");
+const btnSearch = document.getElementById("btnSearch");
+
+const homeSection = document.getElementById("homeSection");
+const searchSection = document.getElementById("searchSection");
+
+// ===== Elements (TRN UI) =====
 const userEmailEl = document.getElementById("userEmail");
+
 const trnInputEl = document.getElementById("trnInput");
 const searchBtnEl = document.getElementById("searchBtn");
 const clearBtnEl = document.getElementById("clearBtn");
@@ -22,7 +30,7 @@ const newTrnInputEl = document.getElementById("newTrnInput");
 const dateRecapInputEl = document.getElementById("dateRecapInput");
 const saveBtnEl = document.getElementById("saveBtn");
 
-// Helpers
+// ===== Helpers =====
 function showOk(text) {
   if (msgErrEl) msgErrEl.style.display = "none";
   if (msgOkEl) {
@@ -42,10 +50,30 @@ function hideMsgs() {
   if (msgErrEl) msgErrEl.style.display = "none";
 }
 
-// Init
+// ===== Navigation (Home/Search) =====
+function setActive(tab) {
+  // buttons
+  if (btnHome) btnHome.classList.toggle("active", tab === "home");
+  if (btnSearch) btnSearch.classList.toggle("active", tab === "search");
+
+  // sections
+  if (homeSection) homeSection.classList.toggle("active", tab === "home");
+  if (searchSection) searchSection.classList.toggle("active", tab === "search");
+
+  // optional cleanup when leaving search
+  if (tab !== "search") hideMsgs();
+}
+
+btnHome && btnHome.addEventListener("click", () => setActive("home"));
+btnSearch && btnSearch.addEventListener("click", () => setActive("search"));
+
+// ===== Init =====
 if (userEmailEl) userEmailEl.textContent = localStorage.getItem("email") || "";
 
-// Load status options
+// Default view (keep Home default)
+setActive("home");
+
+// ===== Load status options =====
 (async () => {
   try {
     const r = await fetch(API + "/api/status-options");
@@ -53,19 +81,18 @@ if (userEmailEl) userEmailEl.textContent = localStorage.getItem("email") || "";
     if (!statusSelectEl) return;
 
     // keep first option
-    const firstOpt = statusSelectEl.innerHTML;
+    const firstOpt = `<option value="">-- Select Status --</option>`;
     statusSelectEl.innerHTML = firstOpt;
 
     (d.statuses || []).forEach((s) => {
       statusSelectEl.innerHTML += `<option value="${s}">${s}</option>`;
     });
   } catch (e) {
-    // silent fail (UI still usable)
     console.error("status-options error:", e);
   }
 })();
 
-// Search
+// ===== Search =====
 async function doSearch() {
   hideMsgs();
 
@@ -75,7 +102,7 @@ async function doSearch() {
     return;
   }
 
-  searchBtnEl && (searchBtnEl.disabled = true);
+  if (searchBtnEl) searchBtnEl.disabled = true;
 
   try {
     const r = await fetch(API + "/api/trn-search", {
@@ -91,6 +118,7 @@ async function doSearch() {
     }
 
     record = d.record;
+
     if (detailWrapEl) detailWrapEl.style.display = "block";
 
     if (fullNameValEl) fullNameValEl.textContent = record.fullname || "—";
@@ -98,7 +126,7 @@ async function doSearch() {
     if (recapStatusValEl) recapStatusValEl.textContent = record.recaptureStatus || "—";
     if (recapSchedValEl) recapSchedValEl.textContent = record.recaptureSchedule || "—";
 
-    if (statusSelectEl && record.status) statusSelectEl.value = record.status;
+    if (statusSelectEl) statusSelectEl.value = record.status || "";
     if (newTrnInputEl) newTrnInputEl.value = record.newTrn || "";
     if (dateRecapInputEl) dateRecapInputEl.value = record.isoDateRecapture || "";
 
@@ -107,11 +135,11 @@ async function doSearch() {
     console.error("trn-search error:", e);
     showErr("Server error while searching TRN.");
   } finally {
-    searchBtnEl && (searchBtnEl.disabled = false);
+    if (searchBtnEl) searchBtnEl.disabled = false;
   }
 }
 
-// Clear
+// ===== Clear =====
 function doClear() {
   hideMsgs();
   record = null;
@@ -129,13 +157,10 @@ function doClear() {
   if (dateRecapInputEl) dateRecapInputEl.value = "";
 }
 
-// Save
+// ===== Save =====
 async function doSave() {
   hideMsgs();
-  if (!record) {
-    showErr("Please search a TRN first.");
-    return;
-  }
+  if (!record) return showErr("Please search a TRN first.");
 
   const payload = {
     rowNumber: record.rowNumber,
@@ -145,12 +170,9 @@ async function doSave() {
     dateOfRecapture: dateRecapInputEl?.value || "",
   };
 
-  if (!payload.status) {
-    showErr("Status is required.");
-    return;
-  }
+  if (!payload.status) return showErr("Status is required.");
 
-  saveBtnEl && (saveBtnEl.disabled = true);
+  if (saveBtnEl) saveBtnEl.disabled = true;
 
   try {
     const r = await fetch(API + "/api/trn-update", {
@@ -160,26 +182,23 @@ async function doSave() {
     });
 
     const d = await r.json();
-    if (!d.success) {
-      showErr(d.message || "Save failed.");
-      return;
-    }
+    if (!d.success) return showErr(d.message || "Save failed.");
 
     showOk("Saved!");
   } catch (e) {
     console.error("trn-update error:", e);
     showErr("Server error while saving.");
   } finally {
-    saveBtnEl && (saveBtnEl.disabled = false);
+    if (saveBtnEl) saveBtnEl.disabled = false;
   }
 }
 
-// Wire events
+// ===== Wire events =====
 searchBtnEl && searchBtnEl.addEventListener("click", doSearch);
 clearBtnEl && clearBtnEl.addEventListener("click", doClear);
 saveBtnEl && saveBtnEl.addEventListener("click", doSave);
 
-// Optional: press Enter in TRN input to search
+// Press Enter to search
 trnInputEl && trnInputEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
