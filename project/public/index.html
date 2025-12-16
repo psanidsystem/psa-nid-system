@@ -20,7 +20,7 @@
 
     <h1 class="title" style="font-size:12px;">Philippine Statistics Authority</h1>
     <h1 class="title">National ID System</h1>
-    <p class="subtitle">Secure Login • Powered by Google Sheets</p>
+    <p class="subtitle">Secure Login • Powered by Node</p>
 
     <div class="tabs">
       <button id="loginTab" class="tab active" type="button">Login</button>
@@ -58,11 +58,17 @@
       <label>Position</label>
       <select id="regPosition" required>
         <option value="">-- Select Position --</option>
+        <option value="Encoder">Encoder</option>
+        <option value="Clerk">Clerk</option>
+        <option value="Supervisor">Supervisor</option>
       </select>
 
       <label>Province</label>
       <select id="regProvince" required>
         <option value="">-- Select Province --</option>
+        <option value="Cebu">Cebu</option>
+        <option value="Bohol">Bohol</option>
+        <option value="Negros Oriental">Negros Oriental</option>
       </select>
 
       <label>Password</label>
@@ -73,7 +79,6 @@
 
       <label>Role</label>
       <select id="regRole" required>
-        <option value="">-- Select Role --</option>
         <option value="user">User</option>
       </select>
 
@@ -88,8 +93,6 @@
     </div>
   </div>
 
-  <script src="assets/js/user.js?v=5" defer></script>
-
+  <script src="assets/js/auth.js" defer></script>
 </body>
 </html>
-
