@@ -40,7 +40,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const regRole = document.getElementById("regRole");
   const adminNote = document.getElementById("adminNote");
 
-  // ===== Viber formatting (spaces not counted) =====
+  // prevent double-load
+  let positionsLoaded = false;
+  let provincesLoaded = false;
+
+  // ===== Viber formatting =====
   function formatViber(d) {
     return d.replace(/^(\d{4})(\d{3})(\d{0,4}).*/, (_, a, b, c) =>
       [a, b, c].filter(Boolean).join(" ")
@@ -50,12 +54,11 @@ document.addEventListener("DOMContentLoaded", () => {
   function normalizeViber() {
     if (!regViber) return;
 
-    let d = regViber.value.replace(/\D/g, ""); // digits only
-
+    let d = regViber.value.replace(/\D/g, "");
     if (d.startsWith("9")) d = "0" + d;
     if (d.length > 0 && !d.startsWith("09")) d = "09" + d.replace(/^0+/, "").replace(/^9/, "");
 
-    d = d.slice(0, 11); // EXACT 11 digits only
+    d = d.slice(0, 11);
     regViber.value = formatViber(d);
 
     regViber.classList.toggle("invalid", !(d.length === 11 && /^09\d{9}$/.test(d)));
@@ -64,35 +67,47 @@ document.addEventListener("DOMContentLoaded", () => {
   regViber && regViber.addEventListener("input", normalizeViber);
   regViber && regViber.addEventListener("blur", normalizeViber);
 
-  // ===== Dropdowns =====
-  async function loadPositions() {
-    if (!regPosition) return;
+  // ===== Dropdowns (load once only) =====
+  async function loadPositionsOnce() {
+    if (!regPosition || positionsLoaded) return;
+
     regPosition.innerHTML = `<option value="">-- Select Position --</option>`;
+    try {
+      const r = await fetch(API + "/api/positions");
+      const d = await r.json();
+      const list = d.positions || [];
 
-    const r = await fetch(API + "/api/positions");
-    const d = await r.json();
+      if (!list.length && d.message) showMsg(regMsg, d.message, "error");
 
-    const list = d.positions || [];
-    if (!list.length && d.message) showMsg(regMsg, d.message, "error");
+      list.forEach((p) => {
+        regPosition.innerHTML += `<option value="${p}">${p}</option>`;
+      });
 
-    list.forEach((p) => {
-      regPosition.innerHTML += `<option value="${p}">${p}</option>`;
-    });
+      positionsLoaded = true;
+    } catch (e) {
+      showMsg(regMsg, "Failed to load positions.", "error");
+    }
   }
 
-  async function loadProvinces() {
-    if (!regProvince) return;
+  async function loadProvincesOnce() {
+    if (!regProvince || provincesLoaded) return;
+
     regProvince.innerHTML = `<option value="">-- Select Province --</option>`;
+    try {
+      const r = await fetch(API + "/api/provinces");
+      const d = await r.json();
+      const list = d.provinces || [];
 
-    const r = await fetch(API + "/api/provinces");
-    const d = await r.json();
+      if (!list.length && d.message) showMsg(regMsg, d.message, "error");
 
-    const list = d.provinces || [];
-    if (!list.length && d.message) showMsg(regMsg, d.message, "error");
+      list.forEach((p) => {
+        regProvince.innerHTML += `<option value="${p}">${p}</option>`;
+      });
 
-    list.forEach((p) => {
-      regProvince.innerHTML += `<option value="${p}">${p}</option>`;
-    });
+      provincesLoaded = true;
+    } catch (e) {
+      showMsg(regMsg, "Failed to load provinces.", "error");
+    }
   }
 
   // ===== Admin eligibility =====
@@ -162,8 +177,9 @@ document.addEventListener("DOMContentLoaded", () => {
     hideMsg(loginMsg);
     hideMsg(regMsg);
 
-    await loadPositions();
-    await loadProvinces();
+    // load dropdowns ONCE only
+    await loadPositionsOnce();
+    await loadProvincesOnce();
     checkAdminEligibility();
   });
 
@@ -189,18 +205,20 @@ document.addEventListener("DOMContentLoaded", () => {
     location.href = d.role === "admin" ? "admin.html" : "user.html";
   });
 
-  // ===== REGISTER (NO OTP) =====
+  // ===== REGISTER =====
   registerForm && (registerForm.onsubmit = async (e) => {
     e.preventDefault();
     hideMsg(regMsg);
 
-    // ensure dropdowns loaded
-    if (regPosition?.options?.length <= 1) await loadPositions();
-    if (regProvince?.options?.length <= 1) await loadProvinces();
+    // ensure dropdowns loaded (in case user directly opens Register)
+    await loadPositionsOnce();
+    await loadProvincesOnce();
 
     const viberDigits = (regViber.value || "").replace(/\D/g, "");
     if (!/^09\d{9}$/.test(viberDigits)) return showMsg(regMsg, "Invalid Viber number.", "error");
     if (regPassword.value !== regConfirm.value) return showMsg(regMsg, "Passwords do not match.", "error");
+    if (!regPosition.value) return showMsg(regMsg, "Please select Position.", "error");
+    if (!regProvince.value) return showMsg(regMsg, "Please select Province.", "error");
 
     const body = {
       email: regEmail.value.trim(),
@@ -226,8 +244,4 @@ document.addEventListener("DOMContentLoaded", () => {
     showMsg(regMsg, "Account created successfully!", "success");
     registerForm.reset();
   });
-
-  // load dropdowns once (safe)
-  loadPositions();
-  loadProvinces();
 });
