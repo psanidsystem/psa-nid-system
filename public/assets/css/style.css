@@ -293,3 +293,31 @@ input:focus, select:focus {
   margin-top: 14px;
 }
 
+.btn-secondary{
+  width: 100%;
+  padding: 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 800;
+  margin-top: 10px;
+  background: #e9f0ff;
+  color: #1f3bb3;
+  border: 1px solid rgba(76,110,245,0.35);
+}
+.btn-secondary:disabled{
+  opacity: .65;
+  cursor: not-allowed;
+}
+
+.btn-ghost{
+  width: 100%;
+  padding: 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 800;
+  margin-top: 10px;
+  background: transparent;
+  color: #6b7280;
+  border: 1px solid rgba(107,114,128,0.35);
+}
+
