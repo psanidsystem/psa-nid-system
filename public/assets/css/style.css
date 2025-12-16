@@ -388,4 +388,35 @@ input:focus, select:focus {
   .two-col{ grid-template-columns: 1fr; }
 }
 
+/* ===== FIX: Force 2-column Register on desktop/tablet ===== */
+
+/* make the register card wider */
+.auth-box-wide{
+  width: 860px;
+  max-width: 100%;
+}
+
+/* default = 2 columns */
+.reg-grid{
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* DO NOT force 420px width on medium screens */
+@media (max-width: 900px){
+  .auth-box-wide{
+    width: 92vw;
+    max-width: 860px;
+  }
+  .reg-grid{
+    grid-template-columns: 1fr 1fr; /* keep 2 columns */
+  }
+}
+
+/* only collapse to 1 column on small phones */
+@media (max-width: 560px){
+  .reg-grid{ grid-template-columns: 1fr; }
+  .two-col{ grid-template-columns: 1fr; }
+}
+
 
