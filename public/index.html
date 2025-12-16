@@ -117,7 +117,39 @@
       © 2025 Philippine Statistics Authority • National ID System
     </div>
   </div>
+<!-- OTP SECTION -->
+<div id="otpWrap" class="hidden" style="margin-top:14px;">
+  <p class="subtitle">
+    Enter the OTP sent to <b id="otpEmailText"></b>
+  </p>
+
+  <input
+    id="otpCode"
+    type="text"
+    inputmode="numeric"
+    maxlength="6"
+    placeholder="Enter 6-digit OTP"
+  />
+
+  <button id="verifyOtpBtn" class="btn-primary">Verify OTP</button>
+
+  <p id="otpMsg" class="msg hidden"></p>
+
+  <p class="subtitle" style="margin-top:8px;">
+    OTP expires in <b id="otpTimer">05:00</b>
+  </p>
+
+  <button
+    id="resendOtpBtn"
+    class="btn-primary"
+    style="background:#e5e7eb;color:#374151;"
+    disabled
+  >
+    Resend OTP
+  </button>
+</div>
 
   <script src="assets/js/auth.js"></script>
 </body>
 </html>
+
