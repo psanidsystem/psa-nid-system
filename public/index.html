@@ -8,7 +8,7 @@
 </head>
 <body class="centered auth-bg">
 
-  <div class="auth-box">
+  <div class="auth-box auth-box-wide">
     <div class="logo-row">
       <div class="logo-wrap">
         <img src="assets/images/psa.png" alt="PSA Logo">
@@ -41,49 +41,86 @@
 
     <!-- REGISTER FORM -->
     <form id="registerForm" class="form" style="display:none;">
-      <div class="form-row">
-        <div>
-          <label>First Name</label>
-          <input type="text" id="regFirstName" required>
+      <div class="reg-grid">
+
+        <!-- LEFT COLUMN -->
+        <div class="reg-col">
+          <div class="section-card">
+            <div class="section-head">
+              <div class="section-title">Personal Information</div>
+              <div class="section-sub">Enter your basic details</div>
+            </div>
+
+            <div class="form-row">
+              <div>
+                <label>First Name</label>
+                <input type="text" id="regFirstName" required>
+              </div>
+              <div>
+                <label>Middle Name</label>
+                <input type="text" id="regMiddleName" placeholder="Optional">
+              </div>
+            </div>
+
+            <label>Last Name</label>
+            <input type="text" id="regLastName" required>
+
+            <label>Email</label>
+            <input type="email" id="regEmail" required>
+
+            <label for="regViber">Viber Number</label>
+            <input id="regViber" type="text" inputmode="numeric" placeholder="09XXXXXXXXX" required />
+            <div class="hint">Format: 09XXXXXXXXX (11 digits)</div>
+          </div>
         </div>
-        <div>
-          <label>Middle Name</label>
-          <input type="text" id="regMiddleName" placeholder="Optional">
+
+        <!-- RIGHT COLUMN -->
+        <div class="reg-col">
+          <div class="section-card">
+            <div class="section-head">
+              <div class="section-title">Work Information</div>
+              <div class="section-sub">Select your office details</div>
+            </div>
+
+            <label>Position</label>
+            <select id="regPosition" required>
+              <option value="">-- Select Position --</option>
+            </select>
+
+            <label>Province</label>
+            <select id="regProvince" required>
+              <option value="">-- Select Province --</option>
+            </select>
+          </div>
+
+          <div class="section-card" style="margin-top:12px;">
+            <div class="section-head">
+              <div class="section-title">Login Credentials</div>
+              <div class="section-sub">Set your password & role</div>
+            </div>
+
+            <div class="two-col">
+              <div>
+                <label>Password</label>
+                <input type="password" id="regPassword" required>
+              </div>
+              <div>
+                <label>Confirm Password</label>
+                <input type="password" id="regConfirm" required>
+              </div>
+            </div>
+
+            <label>Role</label>
+            <select id="regRole" required>
+              <option value="">-- Select Role --</option>
+              <option value="user">User</option>
+            </select>
+
+            <div id="adminNote" class="note bad">Admin role requires authorization.</div>
+          </div>
         </div>
+
       </div>
-
-      <label>Last Name</label>
-      <input type="text" id="regLastName" required>
-
-      <label>Email</label>
-      <input type="email" id="regEmail" required>
-
-      <label for="regViber">Viber Number</label>
-      <input id="regViber" type="text" inputmode="numeric" placeholder="09XXXXXXXXX" required />
-
-      <label>Position</label>
-      <select id="regPosition" required>
-        <option value="">-- Select Position --</option>
-      </select>
-
-      <label>Province</label>
-      <select id="regProvince" required>
-        <option value="">-- Select Province --</option>
-      </select>
-
-      <label>Password</label>
-      <input type="password" id="regPassword" required>
-
-      <label>Confirm Password</label>
-      <input type="password" id="regConfirm" required>
-
-      <label>Role</label>
-      <select id="regRole" required>
-        <option value="">-- Select Role --</option>
-        <option value="user">User</option>
-      </select>
-
-      <div id="adminNote" class="note bad">Admin role requires authorization.</div>
 
       <button type="submit" class="btn-primary">Create Account</button>
       <p id="regMsg" class="msg hidden"></p>
@@ -94,6 +131,6 @@
     </div>
   </div>
 
-  <script src="assets/js/auth.js?v=1" defer></script>
+  <script src="assets/js/auth.js?v=2" defer></script>
 </body>
 </html>
