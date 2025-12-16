@@ -156,11 +156,6 @@
       background: linear-gradient(90deg, rgba(0,51,160,0.12), rgba(0,86,214,0.10));
       border-color: rgba(0,51,160,0.28);
       color: var(--primary);
-
-      <button type="button" onclick="location.href='office.html'">
-  Office <small>Failed Reg</small>
-</button>
-
     }
     .nav small{
       color: var(--muted);
@@ -308,7 +303,7 @@
       font-weight: 700;
     }
 
-    /* Detail summary (4 cards) */
+    /* Detail summary */
     .detail-grid{
       margin-top: 12px;
       display:grid;
@@ -334,7 +329,7 @@
       word-break: break-word;
     }
 
-    /* Update fields Q-R-S */
+    /* Update fields */
     .form-grid{
       margin-top: 12px;
       display:grid;
@@ -416,15 +411,15 @@
         <button id="btnSearch" type="button">
           Search <small>TRN Lookup</small>
         </button>
+
+        <!-- ✅ Office button (inside nav, sakto ang UI) -->
+        <button type="button" onclick="location.href='office.html'">
+          Office <small>Failed Reg</small>
+        </button>
       </nav>
 
-      <button type="button" onclick="location.href='office.html'">
-  Office <small>Personnel</small>
-</button>
-
-
       <div class="logout">
-        <a href="index.html">← Logout</a>
+        <a href="index.html" id="logoutLink">← Logout</a>
       </div>
     </aside>
 
@@ -488,8 +483,6 @@
 
             <div class="card" style="margin-top:14px;padding:14px;">
               <h2 style="margin:0 0 6px;color:var(--primary);font-size:16px;">Update Fields</h2>
-              <p style="margin:0;color:var(--muted);font-size:12px;">
-               </p>
 
               <div class="form-grid">
                 <div class="field">
@@ -525,12 +518,14 @@
     </main>
   </div>
 
-<script src="assets/js/user.js?v=5"></script>
-
-
+  <script src="assets/js/user.js?v=5"></script>
+  <script>
+    // ✅ logout clears localStorage (para dili mo-direct sa weird page)
+    const logoutLink = document.getElementById("logoutLink");
+    logoutLink && logoutLink.addEventListener("click", () => {
+      localStorage.removeItem("email");
+      localStorage.removeItem("role");
+    });
+  </script>
 </body>
 </html>
-
-
-
-
