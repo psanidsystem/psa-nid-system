@@ -1,158 +1,540 @@
+// REAL SERVER — PSA System using Google Sheets (SERVES UI + API)
+// Fixes:
+// - Serve static UI from /public so Render shows UI
+// - Adds /api/accounts for admin table
+// - Adds Position column support (A–M)
+// - Adds SPA-like fallback to index.html (optional but helpful)
+
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
-const bcrypt = require("bcryptjs");
+const { google } = require("googleapis");
+const { GoogleAuth } = require("google-auth-library");
 
 const app = express();
+
+// ===== Middlewares =====
 app.use(cors());
 app.use(express.json());
 
-// Serve frontend from /public
-app.use(express.static(path.join(__dirname, "public")));
+// ✅ Serve frontend (IMPORTANT for Render UI)
+const PUBLIC_DIR = path.join(__dirname, "public");
+app.use(express.static(PUBLIC_DIR));
 
-const PORT = process.env.PORT || 3000;
-
-/* =========================================================
-   MOCK DATABASE (replace with Google Sheets later)
-   ========================================================= */
-
-// USERS DB
-const USERS = []; 
-// format: { email, passHash, role, firstName, middleName, lastName, viber, position, province }
-
-// OPTIONS
-const POSITIONS = ["Encoder", "Clerk", "Supervisor"];
-const PROVINCES = ["Cebu", "Bohol", "Negros Oriental"];
-const STATUSES = ["FOR RECAPTURE", "SCHEDULED", "COMPLETED", "NO RECORD"];
-
-// TRN DB
-const TRN_DATA = [
-  {
-    trn: "74600200620191020240321012107",
-    fullname: "JUAN DELA CRUZ",
-    permanentAddress: "CEBU CITY",
-    recaptureStatus: "FOR RECAPTURE",
-    recaptureSchedule: "2025-02-10",
-    status: "FOR RECAPTURE",
-    newTrn: "",
-    isoDateRecapture: ""
-  }
-];
-
-/* =========================================================
-   HELPERS
-   ========================================================= */
-
-function ok(res, payload = {}) {
-  res.json({ success: true, ...payload });
-}
-function bad(res, message = "Request failed", code = 400) {
-  res.status(code).json({ success: false, message });
-}
-
-/* =========================================================
-   ROUTES
-   ========================================================= */
-
-// Health
-app.get("/api/health", (req, res) => ok(res, { message: "API running" }));
-
-// Dropdowns
-app.get("/api/positions", (req, res) => ok(res, { positions: POSITIONS }));
-app.get("/api/provinces", (req, res) => ok(res, { provinces: PROVINCES }));
-app.get("/api/status-options", (req, res) => ok(res, { statuses: STATUSES }));
-
-// Admin eligibility (optional)
-app.post("/api/admin-eligible", (req, res) => {
-  // your previous logic was "optional"; keep false by default
-  ok(res, { eligible: false });
+// ✅ Root: serve index.html (UI)
+app.get("/", (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
 });
 
-// Register
-app.post("/api/register", async (req, res) => {
+// ✅ Health check
+app.get("/health", (req, res) => {
+  res.json({ ok: true, service: "psa-nid-system", time: new Date().toISOString() });
+});
+
+// ===== Google Sheets Setup (ENV JSON) =====
+function getCredentialsFromEnv() {
+  const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+
+  if (!raw) {
+    throw new Error(
+      "Missing env GOOGLE_APPLICATION_CREDENTIALS_JSON. Add it in Render Environment Variables."
+    );
+  }
+
   try {
-    const b = req.body || {};
-    const email = String(b.email || "").trim().toLowerCase();
-    const password = String(b.password || "");
+    return JSON.parse(raw);
+  } catch (e) {
+    throw new Error(
+      "Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON. Paste the full service account JSON correctly."
+    );
+  }
+}
 
-    if (!email || !password) return bad(res, "Email and password are required.");
+const credentials = getCredentialsFromEnv();
 
-    const exists = USERS.some(u => u.email === email);
-    if (exists) return bad(res, "Email already registered.");
+const auth = new GoogleAuth({
+  credentials,
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+});
 
-    const passHash = await bcrypt.hash(password, 10);
+// ===== Your Google Sheet =====
+const spreadsheetId = "1RJ16ZSoYzFgeYUmeXo21PwkWfG07xC_5R8YqMAtys8s";
 
-    USERS.push({
-      email,
-      passHash,
-      role: b.role || "user",
-      firstName: (b.firstName || "").trim(),
-      middleName: (b.middleName || "").trim(),
-      lastName: (b.lastName || "").trim(),
-      viber: (b.viber || "").trim(),
-      position: (b.position || "").trim(),
-      province: (b.province || "").trim()
+const sheetAccounts = "Accounts";
+const sheetLogs = "Logs";
+const sheetAdmin = "Admin";
+const sheetDropdown = "Dropdown";
+const sheetFailed = "Failed Registration";
+
+// ===== Helpers =====
+async function getClient() {
+  const authClient = await auth.getClient();
+  return google.sheets({ version: "v4", auth: authClient });
+}
+
+// Create Logs sheet if missing
+async function ensureLogsSheet(sheets) {
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const exists = (meta.data.sheets || []).some((s) => s.properties.title === sheetLogs);
+
+  if (!exists) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [{ addSheet: { properties: { title: sheetLogs } } }],
+      },
     });
 
-    ok(res);
-  } catch (e) {
-    console.error(e);
-    bad(res, "Register failed.", 500);
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetLogs}!A1:D1`,
+      valueInputOption: "RAW",
+      requestBody: { values: [["Timestamp", "Action", "Email", "Details"]] },
+    });
   }
-});
+}
 
-// Login
-app.post("/api/login", async (req, res) => {
+async function addLog(action, email, details = "") {
+  const sheets = await getClient();
+  await ensureLogsSheet(sheets);
+
+  const now = new Date().toISOString();
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: `${sheetLogs}!A:D`,
+    valueInputOption: "RAW",
+    requestBody: { values: [[now, action, email, details]] },
+  });
+}
+
+// ✅ Ensure Accounts columns exist (A–M)  (added Position)
+async function ensureColumns() {
+  const sheets = await getClient();
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${sheetAccounts}!A1:M1`,
+    valueInputOption: "RAW",
+    requestBody: {
+      values: [[
+        "Email",
+        "Password",
+        "Role",
+        "Status",
+        "CreatedAt",
+        "UpdatedAt",
+        "LastLogin",
+        "FirstName",
+        "MiddleName",
+        "LastName",
+        "Viber",
+        "Province",
+        "Position",
+      ]],
+    },
+  });
+
+  await ensureLogsSheet(sheets);
+}
+
+// Load accounts (A–M)
+async function loadAccounts() {
+  const sheets = await getClient();
+  await ensureColumns();
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${sheetAccounts}!A2:M`,
+  });
+
+  const rows = res.data.values || [];
+  return rows
+    .filter((r) => r[0])
+    .map((r) => ({
+      email: r[0] || "",
+      password: r[1] || "",
+      role: r[2] || "user",
+      status: r[3] || "active",
+      createdAt: r[4] || "",
+      updatedAt: r[5] || "",
+      lastLogin: r[6] || "",
+      firstName: r[7] || "",
+      middleName: r[8] || "",
+      lastName: r[9] || "",
+      viber: r[10] || "",
+      province: r[11] || "",
+      position: r[12] || "",
+    }));
+}
+
+async function saveAccount({
+  email,
+  password,
+  role,
+  firstName,
+  middleName,
+  lastName,
+  viber,
+  province,
+  position,
+}) {
+  const sheets = await getClient();
+  const now = new Date().toISOString();
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: `${sheetAccounts}!A:M`,
+    valueInputOption: "RAW",
+    requestBody: {
+      values: [[
+        email,
+        password,
+        role,
+        "active",
+        now,
+        now,
+        "",
+        firstName,
+        middleName || "",
+        lastName,
+        viber,
+        province,
+        position || "",
+      ]],
+    },
+  });
+
+  await addLog("Create Account", email, `Role: ${role}, Province: ${province}, Position: ${position || ""}`);
+}
+
+async function updateLastLogin(email) {
+  const sheets = await getClient();
+  const accounts = await loadAccounts();
+
+  const index = accounts.findIndex((a) => a.email.toLowerCase() === email.toLowerCase());
+  if (index === -1) return;
+
+  const rowNumber = index + 2;
+  const now = new Date().toISOString();
+
+  // F = UpdatedAt, G = LastLogin
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${sheetAccounts}!F${rowNumber}:G${rowNumber}`,
+    valueInputOption: "RAW",
+    requestBody: { values: [[now, now]] },
+  });
+
+  await addLog("Login", email, "User logged in");
+}
+
+// Admin role allowed only if match exists in Admin sheet (A=FN, B=MN, C=LN, D=Email)
+async function isAuthorizedAdmin(firstName, middleName, lastName, email) {
+  const sheets = await getClient();
+
+  const result = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${sheetAdmin}!A2:D`,
+  });
+
+  const rows = result.data.values || [];
+
+  const fn = (firstName || "").toLowerCase().trim();
+  const mn = (middleName || "").toLowerCase().trim();
+  const ln = (lastName || "").toLowerCase().trim();
+  const em = (email || "").toLowerCase().trim();
+
+  return rows.some((row) => {
+    const rFn = (row[0] || "").toLowerCase().trim();
+    const rMn = (row[1] || "").toLowerCase().trim();
+    const rLn = (row[2] || "").toLowerCase().trim();
+    const rEm = (row[3] || "").toLowerCase().trim();
+    return rFn === fn && rMn === mn && rLn === ln && rEm === em;
+  });
+}
+
+// ===== Date Format Helpers for Column S (Dec 25, 2025) =====
+function formatToDec25Style(yyyyMmDd) {
+  if (!yyyyMmDd) return "";
+  const d = new Date(yyyyMmDd + "T00:00:00");
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+}
+
+function tryParseDecStyleToISO(text) {
+  if (!text) return "";
+  const d = new Date(text);
+  if (isNaN(d.getTime())) return "";
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// ========================= ROUTES ==============================
+
+// ✅ Admin: Get accounts list (for admin.html table)
+app.get("/api/accounts", async (req, res) => {
   try {
-    const b = req.body || {};
-    const email = String(b.email || "").trim().toLowerCase();
-    const password = String(b.password || "");
-
-    const user = USERS.find(u => u.email === email);
-    if (!user) return bad(res, "Invalid email or password.", 401);
-
-    const match = await bcrypt.compare(password, user.passHash);
-    if (!match) return bad(res, "Invalid email or password.", 401);
-
-    ok(res, { role: user.role || "user" });
-  } catch (e) {
-    console.error(e);
-    bad(res, "Login failed.", 500);
+    const accounts = await loadAccounts();
+    // hide password in response
+    const safe = accounts.map(({ password, ...rest }) => rest);
+    res.json(safe);
+  } catch (err) {
+    console.error("Error in GET /api/accounts:", err.message || err);
+    res.status(500).json({ success: false, message: "Error loading accounts." });
   }
 });
 
-// ✅ TRN SEARCH (this fixes "Route not found" + makes your search work)
-app.post("/api/trn-search", (req, res) => {
-  const trn = String(req.body?.trn || "").replace(/\D/g, "");
-  if (!/^\d{29}$/.test(trn)) return bad(res, "Invalid TRN. Must be 29 digits.");
+// GET provinces (Dropdown!D2:D)
+app.get("/api/provinces", async (req, res) => {
+  try {
+    const sheets = await getClient();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetDropdown}!D2:D`,
+    });
 
-  const found = TRN_DATA.find(r => String(r.trn).trim() === trn);
-  if (!found) return bad(res, "TRN not found.", 404);
+    const rows = result.data.values || [];
+    const provinces = rows.map((r) => (r[0] || "").trim()).filter((v) => v.length > 0);
 
-  // rowNumber is for sheet updates; keep mock value
-  ok(res, { record: { ...found, rowNumber: 2 } });
+    res.json({ success: true, provinces: [...new Set(provinces)] });
+  } catch (err) {
+    console.error("Error in GET /api/provinces:", err.message || err);
+    res.status(500).json({ success: false, message: "Error reading provinces." });
+  }
 });
 
-// ✅ TRN UPDATE
-app.post("/api/trn-update", (req, res) => {
-  const p = req.body || {};
-  const trn = String(p.trn || "").replace(/\D/g, "");
+// GET positions (Dropdown!B2:B)
+app.get("/api/positions", async (req, res) => {
+  try {
+    const sheets = await getClient();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetDropdown}!B2:B`,
+    });
 
-  if (!p.status) return bad(res, "Status is required.");
+    const rows = result.data.values || [];
+    const positions = rows.map((r) => (r[0] || "").trim()).filter((v) => v.length > 0);
 
-  const idx = TRN_DATA.findIndex(r => String(r.trn).trim() === trn);
-  if (idx === -1) return bad(res, "TRN not found.", 404);
-
-  TRN_DATA[idx].status = String(p.status || "");
-  TRN_DATA[idx].newTrn = String(p.newTrn || "").replace(/\D/g, "").slice(0, 29);
-  TRN_DATA[idx].isoDateRecapture = String(p.dateOfRecapture || "");
-
-  ok(res, { message: "Saved" });
+    res.json({ success: true, positions: [...new Set(positions)] });
+  } catch (err) {
+    console.error("Error in GET /api/positions:", err.message || err);
+    res.status(500).json({ success: false, message: "Error reading positions." });
+  }
 });
 
-// Fallback
+// GET status options (Dropdown!C2:C)
+app.get("/api/status-options", async (req, res) => {
+  try {
+    const sheets = await getClient();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetDropdown}!C2:C`,
+    });
+
+    const rows = result.data.values || [];
+    const statuses = rows.map((r) => (r[0] || "").trim()).filter((v) => v.length > 0);
+
+    res.json({ success: true, statuses: [...new Set(statuses)] });
+  } catch (err) {
+    console.error("Error in GET /api/status-options:", err.message || err);
+    res.status(500).json({ success: false, message: "Error reading status options." });
+  }
+});
+
+// REGISTER
+app.post("/api/register", async (req, res) => {
+  const { email, password, role, firstName, middleName, lastName, viber, province, position } = req.body || {};
+
+  if (!email || !password || !role || !firstName || !lastName || !viber || !province || !position) {
+    return res.json({ success: false, message: "Missing required fields." });
+  }
+
+  try {
+    const accounts = await loadAccounts();
+
+    if (accounts.some((a) => a.email.toLowerCase() === email.toLowerCase())) {
+      return res.json({ success: false, message: "Email already exists" });
+    }
+
+    if (role === "admin") {
+      const allowed = await isAuthorizedAdmin(firstName, middleName, lastName, email);
+      if (!allowed) {
+        await addLog("Admin Register Blocked", email, "Not in Admin sheet");
+        return res.json({
+          success: false,
+          message: "Dili ka pwede mo-set og Admin Role (not authorized).",
+        });
+      }
+    }
+
+    await saveAccount({ email, password, role, firstName, middleName, lastName, viber, province, position });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error in POST /api/register:", err.message || err);
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+});
+
+// LOGIN
+app.post("/api/login", async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) return res.json({ success: false, message: "Missing email or password" });
+
+  try {
+    const accounts = await loadAccounts();
+    const user = accounts.find((a) => a.email.toLowerCase() === email.toLowerCase());
+
+    if (!user) return res.json({ success: false, message: "Invalid email or password" });
+    if (user.password !== password) return res.json({ success: false, message: "Invalid email or password" });
+
+    if ((user.status || "").toLowerCase() !== "active") {
+      return res.json({ success: false, message: "Account is disabled." });
+    }
+
+    await updateLastLogin(email);
+    res.json({ success: true, role: user.role });
+  } catch (err) {
+    console.error("Error in POST /api/login:", err.message || err);
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+});
+
+// Admin eligible
+app.post("/api/admin-eligible", async (req, res) => {
+  try {
+    const { firstName, middleName, lastName, email } = req.body || {};
+    if (!firstName || !lastName || !email) return res.json({ success: true, eligible: false });
+
+    const eligible = await isAuthorizedAdmin(firstName, middleName, lastName, email);
+    return res.json({ success: true, eligible });
+  } catch (err) {
+    console.error("Error in POST /api/admin-eligible:", err.message || err);
+    return res.status(500).json({ success: false, eligible: false });
+  }
+});
+
+// ===================== TRN SEARCH / UPDATE (Failed Registration) =====================
+
+// POST /api/trn-search { trn }
+app.post("/api/trn-search", async (req, res) => {
+  try {
+    const { trn } = req.body || {};
+    const cleanTrn = String(trn || "").trim();
+
+    if (!/^\d{29}$/.test(cleanTrn)) {
+      return res.json({ success: false, message: "Invalid TRN format. Must be 29 digits." });
+    }
+
+    const sheets = await getClient();
+
+    // Get A2:S (A=No., B=TRN ... S=Date of Recapture)
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetFailed}!A2:S`,
+    });
+
+    const rows = result.data.values || [];
+    const index = rows.findIndex((r) => (r[1] || "").trim() === cleanTrn);
+
+    if (index === -1) {
+      return res.json({ success: false, message: "TRN not found in Failed Registration." });
+    }
+
+    const row = rows[index] || [];
+    const rowNumber = index + 2;
+
+    const record = {
+      rowNumber,
+      trn: row[1] || "",
+      fullname: row[2] || "",
+      permanentAddress: row[5] || "",
+      recaptureStatus: row[11] || "",
+      recaptureSchedule: row[12] || "",
+      status: row[16] || "",
+      newTrn: row[17] || "",
+      dateOfRecapture: row[18] || "",
+      isoDateRecapture: tryParseDecStyleToISO(row[18] || ""),
+    };
+
+    return res.json({ success: true, record });
+  } catch (err) {
+    console.error("Error in POST /api/trn-search:", err.message || err);
+    return res.status(500).json({ success: false, message: "Server error while searching TRN." });
+  }
+});
+
+// POST /api/trn-update { rowNumber, trn, status, newTrn, dateOfRecapture(YYYY-MM-DD) }
+app.post("/api/trn-update", async (req, res) => {
+  try {
+    const { rowNumber, trn, status, newTrn, dateOfRecapture } = req.body || {};
+    const rn = Number(rowNumber);
+
+    if (!rn || rn < 2) return res.json({ success: false, message: "Invalid rowNumber." });
+
+    const cleanTrn = String(trn || "").trim();
+    if (!/^\d{29}$/.test(cleanTrn)) return res.json({ success: false, message: "Invalid TRN format." });
+
+    const cleanStatus = String(status || "").trim();
+    if (!cleanStatus) return res.json({ success: false, message: "Status is required." });
+
+    const cleanNewTrn = String(newTrn || "").trim();
+    if (cleanNewTrn && !/^\d{29}$/.test(cleanNewTrn)) {
+      return res.json({ success: false, message: "NEW TRN must be 29 digits (or leave blank)." });
+    }
+
+    const sheets = await getClient();
+
+    // Safety check: verify TRN on that row matches
+    const check = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetFailed}!B${rn}:B${rn}`,
+    });
+    const foundTrn = (((check.data.values || [])[0] || [])[0] || "").trim();
+    if (foundTrn !== cleanTrn) {
+      return res.json({ success: false, message: "Row mismatch. Please search again before saving." });
+    }
+
+    const formattedDate = formatToDec25Style(String(dateOfRecapture || "").trim());
+
+    // Update Q-R-S => Q(Status), R(NEW TRN), S(Date of Recapture)
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetFailed}!Q${rn}:S${rn}`,
+      valueInputOption: "RAW",
+      requestBody: {
+        values: [[cleanStatus, cleanNewTrn, formattedDate]],
+      },
+    });
+
+    await addLog("TRN Update", "system", `TRN: ${cleanTrn} | Row: ${rn} | QRS updated`);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Error in POST /api/trn-update:", err.message || err);
+    return res.status(500).json({ success: false, message: "Server error while saving update." });
+  }
+});
+
+// ✅ Fallback: if route not found but browser requests HTML route, show index
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  // If request is for an existing static file, let express.static handle it (it already did).
+  // Otherwise return index.html so UI won't show 404 blank.
+  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
 });
 
-app.listen(PORT, () => console.log(`✅ Server running: http://localhost:${PORT}`));
+// ✅ error handler (keep LAST)
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err);
+  res.status(500).json({ success: false, message: "Internal server error." });
+});
+
+// ===== START SERVER =====
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("🔥 REAL server running on port " + PORT);
+});
