@@ -3,17 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PSA • Office-based Personnel</title>
-
+  <title>PSA • Office-based</title>
   <style>
     :root{
-      --primary:#0033a0;
-      --primary2:#0056d6;
-      --bg:#f4f7ff;
-      --card:#ffffff;
-      --text:#1f2937;
-      --muted:#6b7280;
-      --border:#e5e7eb;
+      --primary:#0033a0; --primary2:#0056d6;
+      --bg:#f4f7ff; --card:#ffffff; --text:#1f2937;
+      --muted:#6b7280; --border:#e5e7eb;
       --shadow: 0 10px 25px rgba(0,0,0,0.08);
       --radius: 14px;
       --okbg:#eaf7ef; --okbd:#bfe7cb; --ok:#0f5132;
@@ -32,7 +27,6 @@
       max-width: 1400px; margin: 0 auto;
       display:flex; align-items:center; justify-content: space-between; gap: 14px;
     }
-    .brand{ display:flex; align-items:center; gap: 12px; min-width: 260px; }
     .brand-text h1{ margin:0; font-size: 16px; }
     .brand-text p{ margin:2px 0 0; font-size: 12px; opacity:.9; }
 
@@ -41,6 +35,7 @@
       background: rgba(255,255,255,0.14);
       border: 1px solid rgba(255,255,255,0.22);
       padding: 8px 10px; border-radius: 999px; font-size: 12px;
+      white-space: nowrap;
     }
     .user-pill .dot{
       height:8px; width:8px; border-radius:50%; background:#22c55e;
@@ -66,9 +61,7 @@
       background:#f8fbff;
       padding: 10px 12px;
       border-radius: 12px;
-      cursor:pointer;
-      font-weight: 700;
-      color:#0f172a;
+      cursor:pointer; font-weight: 700; color:#0f172a;
       display:flex; align-items:center; justify-content: space-between;
     }
     .nav button:hover{ background:#eef5ff; border-color:#cfe0ff; }
@@ -137,7 +130,7 @@
     .alert.err{ display:block; background: var(--errbg); border-color: var(--errbd); color: var(--err); }
 
     .table-wrap{ overflow:auto; margin-top: 12px; border-radius: 12px; border: 1px solid var(--border); }
-    table{ width:100%; border-collapse: collapse; min-width: 900px; background:#fff; }
+    table{ width:100%; border-collapse: collapse; min-width: 1000px; background:#fff; }
     th, td{ padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
     th{ background: #f3f7ff; color:#0f172a; text-align:left; position: sticky; top: 0; z-index: 1; }
 
@@ -152,14 +145,12 @@
 
   <div class="topbar">
     <div class="topbar-inner">
-      <div class="brand">
-        <div class="brand-text">
-          <h1>PSA • National ID System</h1>
-          <p>Office-based (Auto Province Filter)</p>
-        </div>
+      <div class="brand-text">
+        <h1>PSA • National ID System</h1>
+        <p>Office-based (Auto Province Filter)</p>
       </div>
 
-      <div class="user-pill" title="Logged in user">
+      <div class="user-pill">
         <span class="dot"></span>
         <span id="userEmail">user@example.gov.ph</span>
       </div>
@@ -183,11 +174,11 @@
 
     <main class="main">
       <section class="card">
-        <h2>Failed Registration (B–G)</h2>
-        <p id="subText">Loading records...</p>
+        <h2>Failed Registration List</h2>
+        <p id="subText">Loading...</p>
 
         <div class="controls">
-          <input id="qInput" class="input" type="text" placeholder="Search TRN / name / address..." />
+          <input id="qInput" class="input" type="text" placeholder="Search TRN / fullname / contact / email / address..." />
           <button id="refreshBtn" class="btn secondary" type="button">
             <span class="spinner" id="refreshSpinner"></span>
             <span>Refresh</span>
@@ -201,12 +192,12 @@
           <table>
             <thead>
               <tr>
-                <th>TRN (Col B)</th>
-                <th>Fullname (Col C)</th>
-                <th>Col D</th>
-                <th>Col E</th>
-                <th>Col F</th>
-                <th>Province (Col G)</th>
+                <th>TRN</th>
+                <th>Fullname</th>
+                <th>Contact No.</th>
+                <th>Email Address</th>
+                <th>Permanent Address</th>
+                <th>Province</th>
               </tr>
             </thead>
             <tbody id="tbody">
