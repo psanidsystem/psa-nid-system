@@ -6,39 +6,22 @@ const { google } = require("googleapis");
 const { GoogleAuth } = require("google-auth-library");
 
 const app = express();
-
-// ===== Middlewares =====
 app.use(cors());
 app.use(express.json());
 
-// ✅ Serve static UI (Render needs this)
+// ✅ serve static UI
 app.use(express.static(path.join(__dirname, "public")));
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+app.get("/health", (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
-// ✅ Root serve UI
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-// ✅ Health
-app.get("/health", (req, res) => {
-  res.json({ ok: true, time: new Date().toISOString() });
-});
-
-// ===== Google Sheets Setup (ENV JSON) =====
+// ===== Google Sheets Setup =====
 function getCredentialsFromEnv() {
   const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-  if (!raw) {
-    throw new Error("Missing env GOOGLE_APPLICATION_CREDENTIALS_JSON in Render.");
-  }
-  try {
-    return JSON.parse(raw);
-  } catch {
-    throw new Error("Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON.");
-  }
+  if (!raw) throw new Error("Missing env GOOGLE_APPLICATION_CREDENTIALS_JSON");
+  try { return JSON.parse(raw); } catch { throw new Error("Invalid GOOGLE_APPLICATION_CREDENTIALS_JSON"); }
 }
 
 const credentials = getCredentialsFromEnv();
-
 const auth = new GoogleAuth({
   credentials,
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
@@ -46,13 +29,18 @@ const auth = new GoogleAuth({
 
 const spreadsheetId = "1RJ16ZSoYzFgeYUmeXo21PwkWfG07xC_5R8YqMAtys8s";
 
+// Sheet names
 const sheetAccounts = "Accounts";
 const sheetLogs = "Logs";
 const sheetAdmin = "Admin";
 const sheetDropdown = "Dropdown";
 const sheetFailed = "Failed Registration";
 
-// ===== Sheets Helpers =====
+// ✅ IMPORTANT: allow overriding ranges from Render ENV
+const POSITIONS_RANGE = process.env.POSITIONS_RANGE || `${sheetDropdown}!B2:B`;
+const PROVINCES_RANGE = process.env.PROVINCES_RANGE || `${sheetDropdown}!D2:D`;
+const STATUS_RANGE    = process.env.STATUS_RANGE    || `${sheetDropdown}!C2:C`;
+
 async function getClient() {
   const authClient = await auth.getClient();
   return google.sheets({ version: "v4", auth: authClient });
@@ -80,7 +68,6 @@ async function ensureLogsSheet(sheets) {
 async function addLog(action, email, details = "") {
   const sheets = await getClient();
   await ensureLogsSheet(sheets);
-
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: `${sheetLogs}!A:D`,
@@ -97,29 +84,17 @@ async function ensureColumns() {
     valueInputOption: "RAW",
     requestBody: {
       values: [[
-        "Email",
-        "Password",
-        "Role",
-        "Status",
-        "CreatedAt",
-        "UpdatedAt",
-        "LastLogin",
-        "FirstName",
-        "MiddleName",
-        "LastName",
-        "Viber",
-        "Province",
+        "Email","Password","Role","Status","CreatedAt","UpdatedAt","LastLogin",
+        "FirstName","MiddleName","LastName","Viber","Province",
       ]],
     },
   });
-
   await ensureLogsSheet(sheets);
 }
 
 async function loadAccounts() {
   const sheets = await getClient();
   await ensureColumns();
-
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: `${sheetAccounts}!A2:L`,
@@ -154,18 +129,10 @@ async function saveAccount({ email, password, role, firstName, middleName, lastN
     valueInputOption: "RAW",
     requestBody: {
       values: [[
-        email,
-        password,
-        role,
-        "active",
-        now,
-        now,
-        "",
-        firstName,
-        middleName || "",
-        lastName,
-        viber,
-        province,
+        email, password, role, "active",
+        now, now, "",
+        firstName, middleName || "", lastName,
+        viber, province,
       ]],
     },
   });
@@ -182,7 +149,6 @@ async function updateLastLogin(email) {
   const rowNumber = index + 2;
   const now = new Date().toISOString();
 
-  // F UpdatedAt, G LastLogin
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     range: `${sheetAccounts}!F${rowNumber}:G${rowNumber}`,
@@ -216,26 +182,7 @@ async function isAuthorizedAdmin(firstName, middleName, lastName, email) {
   });
 }
 
-// ===== Date helpers for Failed Registration column S =====
-function formatToDec25Style(yyyyMmDd) {
-  if (!yyyyMmDd) return "";
-  const d = new Date(yyyyMmDd + "T00:00:00");
-  if (isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
-}
-function tryParseDecStyleToISO(text) {
-  if (!text) return "";
-  const d = new Date(text);
-  if (isNaN(d.getTime())) return "";
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-// ========================= OTP (Email) ==============================
-// Render ENV required:
-// EMAIL_USER, EMAIL_PASS (Gmail App Password)
+// ===== Email (OTP) =====
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
@@ -244,7 +191,6 @@ const transporter = nodemailer.createTransport({
 const otpStore = new Map();      // email -> { otp, expiresAt, resendReadyAt }
 const verifiedStore = new Map(); // email -> { expiresAt }
 
-// ✅ Debug endpoint (open this in browser)
 app.get("/api/email-debug", async (req, res) => {
   try {
     await transporter.verify();
@@ -254,7 +200,6 @@ app.get("/api/email-debug", async (req, res) => {
   }
 });
 
-// POST /api/send-otp { email }
 app.post("/api/send-otp", async (req, res) => {
   try {
     const em = String(req.body?.email || "").trim().toLowerCase();
@@ -269,8 +214,8 @@ app.post("/api/send-otp", async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     otpStore.set(em, {
       otp,
-      expiresAt: Date.now() + 5 * 60 * 1000,      // 5 minutes
-      resendReadyAt: Date.now() + 30 * 1000,      // 30 seconds cooldown
+      expiresAt: Date.now() + 5 * 60 * 1000,
+      resendReadyAt: Date.now() + 30 * 1000,
     });
 
     await transporter.sendMail({
@@ -284,13 +229,12 @@ app.post("/api/send-otp", async (req, res) => {
           <p>Your OTP code is:</p>
           <div style="font-size:28px;font-weight:800;letter-spacing:4px;margin:10px 0">${otp}</div>
           <p>Expires in <b>5 minutes</b>.</p>
-          <p style="color:#6b7280;font-size:12px;margin-top:16px">If you did not request this, ignore this email.</p>
         </div>
       `,
     });
 
     await addLog("Send OTP", em, "OTP sent");
-    res.json({ success: true, message: "OTP sent." });
+    res.json({ success: true });
   } catch (err) {
     console.error("SEND OTP ERROR:", err);
     res.status(500).json({
@@ -300,7 +244,6 @@ app.post("/api/send-otp", async (req, res) => {
   }
 });
 
-// POST /api/verify-otp { email, otp }
 app.post("/api/verify-otp", async (req, res) => {
   try {
     const em = String(req.body?.email || "").trim().toLowerCase();
@@ -315,7 +258,7 @@ app.post("/api/verify-otp", async (req, res) => {
     if (rec.otp !== code) return res.json({ success: false, message: "Invalid OTP." });
 
     otpStore.delete(em);
-    verifiedStore.set(em, { expiresAt: Date.now() + 10 * 60 * 1000 }); // verified window 10 mins
+    verifiedStore.set(em, { expiresAt: Date.now() + 10 * 60 * 1000 });
     await addLog("Verify OTP", em, "OTP verified");
     res.json({ success: true });
   } catch (err) {
@@ -324,70 +267,86 @@ app.post("/api/verify-otp", async (req, res) => {
   }
 });
 
-// ========================= API ROUTES ==============================
-
-// ✅ Accounts list (for admin page)
-app.get("/api/accounts", async (req, res) => {
+// ====================== DROPDOWN DEBUG (NEW) ======================
+app.get("/api/dropdown-debug", async (req, res) => {
   try {
-    const accounts = await loadAccounts();
-    // do not expose password
-    res.json(accounts.map(a => ({
-      email: a.email,
-      role: a.role,
-      status: a.status,
-      lastLogin: a.lastLogin,
-    })));
+    const sheets = await getClient();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetDropdown}!A1:Z20`,
+    });
+    res.json({
+      success: true,
+      sheet: sheetDropdown,
+      note: "Check which column contains Positions/Provinces then set POSITIONS_RANGE/PROVINCES_RANGE env if needed.",
+      preview: result.data.values || [],
+      ranges: { POSITIONS_RANGE, PROVINCES_RANGE, STATUS_RANGE },
+    });
   } catch (err) {
-    console.error("GET /api/accounts:", err);
-    res.status(500).json({ success: false, message: "Error loading accounts." });
+    console.error("dropdown-debug:", err);
+    res.status(500).json({ success: false, message: err.message || "debug error" });
+  }
+});
+
+function uniqNonEmpty(values) {
+  return [...new Set(values.map(v => (v || "").trim()).filter(v => v.length > 0))];
+}
+
+async function readColumnRange(range) {
+  const sheets = await getClient();
+  const result = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+  const rows = result.data.values || [];
+  return uniqNonEmpty(rows.map(r => r[0]));
+}
+
+// Positions
+app.get("/api/positions", async (req, res) => {
+  try {
+    const positions = await readColumnRange(POSITIONS_RANGE);
+
+    // If empty, still return success but include message for debugging
+    if (!positions.length) {
+      await addLog("Positions Empty", "system", `Range used: ${POSITIONS_RANGE}`);
+      return res.json({
+        success: true,
+        positions: [],
+        message: `No positions found. Check Google Sheet '${sheetDropdown}' and range '${POSITIONS_RANGE}'.`,
+      });
+    }
+
+    res.json({ success: true, positions });
+  } catch (err) {
+    console.error("GET /api/positions:", err);
+    res.status(500).json({ success: false, message: "Error reading positions: " + (err.message || "") });
   }
 });
 
 // Provinces
 app.get("/api/provinces", async (req, res) => {
   try {
-    const sheets = await getClient();
-    const result = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${sheetDropdown}!D2:D`,
-    });
-    const rows = result.data.values || [];
-    const provinces = rows.map(r => (r[0] || "").trim()).filter(Boolean);
-    res.json({ success: true, provinces: [...new Set(provinces)] });
+    const provinces = await readColumnRange(PROVINCES_RANGE);
+
+    if (!provinces.length) {
+      await addLog("Provinces Empty", "system", `Range used: ${PROVINCES_RANGE}`);
+      return res.json({
+        success: true,
+        provinces: [],
+        message: `No provinces found. Check Google Sheet '${sheetDropdown}' and range '${PROVINCES_RANGE}'.`,
+      });
+    }
+
+    res.json({ success: true, provinces });
   } catch (err) {
     console.error("GET /api/provinces:", err);
-    res.status(500).json({ success: false, message: "Error reading provinces." });
-  }
-});
-
-// Positions
-app.get("/api/positions", async (req, res) => {
-  try {
-    const sheets = await getClient();
-    const result = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${sheetDropdown}!B2:B`,
-    });
-    const rows = result.data.values || [];
-    const positions = rows.map(r => (r[0] || "").trim()).filter(Boolean);
-    res.json({ success: true, positions: [...new Set(positions)] });
-  } catch (err) {
-    console.error("GET /api/positions:", err);
-    res.status(500).json({ success: false, message: "Error reading positions." });
+    res.status(500).json({ success: false, message: "Error reading provinces: " + (err.message || "") });
   }
 });
 
 // Status options
 app.get("/api/status-options", async (req, res) => {
   try {
-    const sheets = await getClient();
-    const result = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${sheetDropdown}!C2:C`,
-    });
-    const rows = result.data.values || [];
-    const statuses = rows.map(r => (r[0] || "").trim()).filter(Boolean);
-    res.json({ success: true, statuses: [...new Set(statuses)] });
+    const statuses = await readColumnRange(STATUS_RANGE);
+    res.json({ success: true, statuses });
   } catch (err) {
     console.error("GET /api/status-options:", err);
     res.status(500).json({ success: false, message: "Error reading status options." });
@@ -407,7 +366,7 @@ app.post("/api/admin-eligible", async (req, res) => {
   }
 });
 
-// REGISTER (requires verified OTP)
+// Register (requires verified OTP)
 app.post("/api/register", async (req, res) => {
   const { email, password, role, firstName, middleName, lastName, viber, province } = req.body || {};
   if (!email || !password || !role || !firstName || !lastName || !viber || !province) {
@@ -415,16 +374,15 @@ app.post("/api/register", async (req, res) => {
   }
 
   const em = String(email).trim().toLowerCase();
-
   const v = verifiedStore.get(em);
   if (!v || Date.now() > v.expiresAt) {
     verifiedStore.delete(em);
-    return res.json({ success: false, message: "Email not verified. Please verify OTP first." });
+    return res.json({ success: false, message: "Email not verified. Verify OTP first." });
   }
 
   try {
     const accounts = await loadAccounts();
-    if (accounts.some(a => a.email.toLowerCase() === em)) {
+    if (accounts.some((a) => a.email.toLowerCase() === em)) {
       return res.json({ success: false, message: "Email already exists" });
     }
 
@@ -438,7 +396,6 @@ app.post("/api/register", async (req, res) => {
 
     await saveAccount({ email: em, password, role, firstName, middleName, lastName, viber, province });
     verifiedStore.delete(em);
-
     res.json({ success: true });
   } catch (err) {
     console.error("POST /api/register:", err);
@@ -446,14 +403,14 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// LOGIN
+// Login
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.json({ success: false, message: "Missing email or password" });
 
   try {
     const accounts = await loadAccounts();
-    const user = accounts.find(a => a.email.toLowerCase() === String(email).toLowerCase());
+    const user = accounts.find((a) => a.email.toLowerCase() === String(email).toLowerCase());
 
     if (!user) return res.json({ success: false, message: "Invalid email or password" });
     if (user.password !== password) return res.json({ success: false, message: "Invalid email or password" });
@@ -470,85 +427,24 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// TRN search
-app.post("/api/trn-search", async (req, res) => {
+// Accounts list for admin table
+app.get("/api/accounts", async (req, res) => {
   try {
-    const cleanTrn = String(req.body?.trn || "").trim();
-    if (!/^\d{29}$/.test(cleanTrn)) return res.json({ success: false, message: "Invalid TRN. Must be 29 digits." });
-
-    const sheets = await getClient();
-    const result = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${sheetFailed}!A2:S`,
-    });
-
-    const rows = result.data.values || [];
-    const index = rows.findIndex((r) => (r[1] || "").trim() === cleanTrn);
-    if (index === -1) return res.json({ success: false, message: "TRN not found." });
-
-    const row = rows[index] || [];
-    const rowNumber = index + 2;
-
-    res.json({
-      success: true,
-      record: {
-        rowNumber,
-        trn: row[1] || "",
-        fullname: row[2] || "",
-        permanentAddress: row[5] || "",
-        recaptureStatus: row[11] || "",
-        recaptureSchedule: row[12] || "",
-        status: row[16] || "",
-        newTrn: row[17] || "",
-        dateOfRecapture: row[18] || "",
-        isoDateRecapture: tryParseDecStyleToISO(row[18] || ""),
-      },
-    });
+    const accounts = await loadAccounts();
+    res.json(accounts.map(a => ({
+      email: a.email,
+      role: a.role,
+      status: a.status,
+      lastLogin: a.lastLogin,
+    })));
   } catch (err) {
-    console.error("POST /api/trn-search:", err);
-    res.status(500).json({ success: false, message: "Server error while searching TRN." });
+    console.error("GET /api/accounts:", err);
+    res.status(500).json({ success: false, message: "Error loading accounts." });
   }
 });
 
-// TRN update
-app.post("/api/trn-update", async (req, res) => {
-  try {
-    const rn = Number(req.body?.rowNumber);
-    const cleanTrn = String(req.body?.trn || "").trim();
-    const cleanStatus = String(req.body?.status || "").trim();
-    const cleanNewTrn = String(req.body?.newTrn || "").trim();
-    const dateOfRecapture = String(req.body?.dateOfRecapture || "").trim();
+// 404
+app.use((req, res) => res.status(404).json({ success: false, message: `Route not found: ${req.method} ${req.originalUrl}` }));
 
-    if (!rn || rn < 2) return res.json({ success: false, message: "Invalid rowNumber." });
-    if (!/^\d{29}$/.test(cleanTrn)) return res.json({ success: false, message: "Invalid TRN format." });
-    if (!cleanStatus) return res.json({ success: false, message: "Status is required." });
-    if (cleanNewTrn && !/^\d{29}$/.test(cleanNewTrn)) return res.json({ success: false, message: "NEW TRN must be 29 digits." });
-
-    const sheets = await getClient();
-    const check = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${sheetFailed}!B${rn}:B${rn}`,
-    });
-    const foundTrn = (((check.data.values || [])[0] || [])[0] || "").trim();
-    if (foundTrn !== cleanTrn) return res.json({ success: false, message: "Row mismatch. Search again." });
-
-    const formattedDate = formatToDec25Style(dateOfRecapture);
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `${sheetFailed}!Q${rn}:S${rn}`,
-      valueInputOption: "RAW",
-      requestBody: { values: [[cleanStatus, cleanNewTrn, formattedDate]] },
-    });
-
-    await addLog("TRN Update", "system", `TRN:${cleanTrn} Row:${rn}`);
-    res.json({ success: true });
-  } catch (err) {
-    console.error("POST /api/trn-update:", err);
-    res.status(500).json({ success: false, message: "Server error while saving update." });
-  }
-});
-
-// ===== START SERVER =====
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("🔥 server running on port", PORT));
