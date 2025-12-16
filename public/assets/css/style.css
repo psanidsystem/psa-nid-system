@@ -419,4 +419,25 @@ input:focus, select:focus {
   .two-col{ grid-template-columns: 1fr; }
 }
 
+/* ===== Make Login narrow even if container is wide ===== */
+.login-pane{
+  max-width: 520px;      /* adjust: 480 / 520 / 560 */
+  margin: 0 auto;        /* center inside wide card */
+}
+
+/* keep register full width (2 cols) */
+.register-pane{
+  width: 100%;
+}
+
+/* optional: make inputs not too tall-wide looking */
+.login-pane input{
+  border-radius: 12px;
+}
+
+/* optional: button same width as login form */
+.login-pane .btn-primary{
+  width: 100%;
+}
+
 
