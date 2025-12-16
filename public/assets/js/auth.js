@@ -216,25 +216,19 @@ function lockRegisterForm(lock) {
 }
 
 // Step 1: send OTP
-registerForm.onsubmit = async e => {
+// Step 1: Send OTP only (NO register yet)
+registerForm.onsubmit = async (e) => {
   e.preventDefault();
   hideMsg(regMsg);
   hideOtpMsg();
 
-  // validate viber digits
   const viberDigits = regViber.value.replace(/\D/g, "");
   if (!/^09\d{9}$/.test(viberDigits)) {
     return showMsg(regMsg, "Invalid Viber number.", "error");
   }
 
-  // validate password match
   if (regPassword.value !== regConfirm.value) {
-    return showMsg(regMsg, "Password and Confirm Password do not match.", "error");
-  }
-
-  // validate required
-  if (!regEmail.value || !regFirstName.value || !regLastName.value || !regProvince.value || !regPosition.value || !regRole.value) {
-    return showMsg(regMsg, "Please complete all required fields.", "error");
+    return showMsg(regMsg, "Passwords do not match.", "error");
   }
 
   pendingReg = {
@@ -249,33 +243,26 @@ registerForm.onsubmit = async e => {
     province: regProvince.value,
   };
 
-  // Send OTP
-  try {
-    lockRegisterForm(true);
+  // 🔐 SEND OTP
+  const r = await fetch(API + "/api/send-otp", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: pendingReg.email }),
+  });
 
-    const r = await fetch(API + "/api/send-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: pendingReg.email }),
-    });
-    const d = await r.json();
-
-    if (!d.success) {
-      lockRegisterForm(false);
-      return showMsg(regMsg, d.message || "Failed to send OTP.", "error");
-    }
-
-    // show OTP UI
-    otpEmailText.textContent = pendingReg.email;
-    otpCode.value = "";
-    otpWrap.classList.remove("hidden");
-    showMsg(regMsg, "OTP sent! Please check your email.", "success");
-  } catch (err) {
-    console.error(err);
-    lockRegisterForm(false);
-    showMsg(regMsg, "Server error sending OTP.", "error");
+  const d = await r.json();
+  if (!d.success) {
+    return showMsg(regMsg, d.message || "Failed to send OTP.", "error");
   }
+
+  // ✅ SHOW OTP SECTION
+  otpEmailText.textContent = pendingReg.email;
+  otpWrap.classList.remove("hidden");
+  lockRegisterForm(true);
+
+  showMsg(regMsg, "OTP sent. Please check your email.", "success");
 };
+
 
 // Step 2: verify OTP then register
 verifyOtpBtn.onclick = async () => {
@@ -366,3 +353,4 @@ cancelOtpBtn.onclick = () => {
   hideOtpMsg();
   showMsg(regMsg, "OTP cancelled. You may edit your details and try again.", "error");
 };
+
