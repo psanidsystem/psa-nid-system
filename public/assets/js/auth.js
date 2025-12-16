@@ -41,22 +41,45 @@ registerTab.onclick = async () => {
 };
 
 // Viber formatting
+// =======================
+// VIBER INPUT (09 + 11 DIGITS) - NO maxlength (spaces won't break)
+// =======================
 const regViber = document.getElementById("regViber");
+
 function formatViber(d) {
+  // d is digits only, max 11
+  // display as: 09XX XXX XXXX (optional)
   return d.replace(/^(\d{4})(\d{3})(\d{0,4}).*/, (_, a, b, c) =>
     [a, b, c].filter(Boolean).join(" ")
   );
 }
+
 function normalizeViber() {
+  // keep digits only
   let d = regViber.value.replace(/\D/g, "");
+
+  // allow if user types starting with 9
   if (d.startsWith("9")) d = "0" + d;
-  if (!d.startsWith("09")) d = "09";
+
+  // force starts with 09 (only if user typed something)
+  if (d.length > 0 && !d.startsWith("09")) {
+    d = "09" + d.replace(/^0+/, "").replace(/^9/, "");
+  }
+
+  // enforce 11 digits max (digits only)
   d = d.slice(0, 11);
+
+  // set formatted display
   regViber.value = formatViber(d);
-  regViber.classList.toggle("invalid", !/^09\d{9}$/.test(d));
+
+  // validate (digits must be 11 and starts with 09)
+  regViber.classList.toggle("invalid", !(d.length === 11 && /^09\d{9}$/.test(d)));
 }
+
+// Always enforce digits + limit on every input/paste
 regViber.addEventListener("input", normalizeViber);
 regViber.addEventListener("blur", normalizeViber);
+
 
 // Dropdowns
 async function loadProvinces() {
@@ -187,3 +210,4 @@ registerForm.onsubmit = async (e) => {
   registerForm.reset();
   setAdmin(false);
 };
+
