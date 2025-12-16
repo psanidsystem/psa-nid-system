@@ -5,17 +5,13 @@ let record = null;
 document.getElementById("userEmail").textContent =
   localStorage.getItem("email") || "";
 
-// Status dropdown
 (async () => {
   const r = await fetch(API + "/api/status-options");
   const d = await r.json();
   const sel = document.getElementById("statusSelect");
-  (d.statuses || []).forEach(s => {
-    sel.innerHTML += `<option value="${s}">${s}</option>`;
-  });
+  (d.statuses || []).forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
 })();
 
-// Search
 document.getElementById("searchBtn").onclick = async () => {
   const trn = trnInput.value.replace(/\D/g, "");
   if (!/^\d{29}$/.test(trn)) return alert("Invalid TRN");
@@ -37,13 +33,11 @@ document.getElementById("searchBtn").onclick = async () => {
   recapStatusVal.textContent = record.recaptureStatus;
   recapSchedVal.textContent = record.recaptureSchedule;
 
-  // optional populate existing
   if (record.status) statusSelect.value = record.status;
   if (record.newTrn) newTrnInput.value = record.newTrn;
   if (record.isoDateRecapture) dateRecapInput.value = record.isoDateRecapture;
 };
 
-// Save
 document.getElementById("saveBtn").onclick = async () => {
   if (!record) return;
 
