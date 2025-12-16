@@ -180,12 +180,7 @@ input:focus, select:focus {
   color: #6b7280;
 }
 
-/* ===== NOTE =====
-   FIX: Scope Admin styles so it won't affect user.html
-   Add: <body class="admin-page"> in admin.html
-*/
-
-/* ===== ADMIN STYLES (SCOPED) ===== */
+/* ✅ ADMIN styles scoped to avoid conflict with user.html inline styles */
 .admin-page .sidebar {
   width: 220px;
   height: 100vh;
@@ -196,9 +191,7 @@ input:focus, select:focus {
   top: 0;
   left: 0;
 }
-
 .admin-page .side-title { font-size: 20px; margin-bottom: 20px; }
-
 .admin-page .side-link {
   display: block;
   color: #d1d5db;
@@ -207,42 +200,34 @@ input:focus, select:focus {
   border-radius: 6px;
   margin-bottom: 8px;
 }
-
-.admin-page .side-link.active,
-.admin-page .side-link:hover {
+.admin-page .side-link.active, .admin-page .side-link:hover {
   background: #374151;
   color: white;
 }
-
 .admin-page .main {
   margin-left: 240px;
   padding: 30px;
 }
-
 .admin-page .card {
   background: white;
   padding: 20px;
   border-radius: 10px;
   box-shadow: 0 3px 12px rgba(0,0,0,0.15);
 }
-
 .admin-page .styled-table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 15px;
 }
-
 .admin-page .styled-table th {
   background: #4c6ef5;
   color: white;
   padding: 10px;
 }
-
 .admin-page .styled-table td {
   padding: 10px;
   border-bottom: 1px solid #ddd;
 }
-
 .admin-page .search {
   width: 100%;
   padding: 10px;
@@ -251,39 +236,18 @@ input:focus, select:focus {
   border: 1px solid #aaa;
 }
 
-/* Responsive for Admin */
-@media (max-width: 900px) {
-  .admin-page .sidebar {
-    position: relative;
-    width: 100%;
-    height: auto;
-  }
-  .admin-page .main {
-    margin-left: 0;
-  }
-}
-
-/* Responsive small screens (Auth) */
+/* Responsive small screens */
 @media (max-width: 420px) {
   .auth-box { padding: 22px 18px 16px; }
   .title { font-size: 20px; }
 }
 
-/* Form row (auth register) */
-.form-row {
-  display: flex;
-  gap: 10px;
-}
-.form-row > div {
-  flex: 1;
-}
+.form-row { display: flex; gap: 10px; }
+.form-row > div { flex: 1; }
 @media (max-width: 480px) {
-  .form-row {
-    flex-direction: column;
-  }
+  .form-row { flex-direction: column; }
 }
 
-/* Note */
 .note{
   margin-top: 6px;
   font-size: 12px;
@@ -293,20 +257,9 @@ input:focus, select:focus {
 .note.bad{ color:#b91c1c; }
 
 /* ===== FIXED WIDTH (TRN Search + Status + Date) ===== */
-.fixed-width{
-  width: 180px;
-  max-width: none;
-}
-#trnInput{
-  width: 180px;
-  max-width: none;
-}
-#statusSelect,
-#newTrnInput,
-#dateRecapInput{
-  width: 180px;
-  max-width: none;
-}
+.fixed-width{ width: 180px; max-width: none; }
+#trnInput{ width: 180px; max-width: none; }
+#statusSelect, #newTrnInput, #dateRecapInput{ width: 180px; max-width: none; }
 
 .invalid{
   border-color:#ef4444 !important;
