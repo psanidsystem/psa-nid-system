@@ -1,7 +1,6 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
-const nodemailer = require("nodemailer");
 const { google } = require("googleapis");
 const { GoogleAuth } = require("google-auth-library");
 
@@ -9,43 +8,51 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ serve static UI
+// ✅ serve static UI (Render)
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 app.get("/health", (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
-// ===== Google Sheets Setup =====
+// ===== Google Sheets Setup (ENV JSON) =====
 function getCredentialsFromEnv() {
   const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-  if (!raw) throw new Error("Missing env GOOGLE_APPLICATION_CREDENTIALS_JSON");
-  try { return JSON.parse(raw); } catch { throw new Error("Invalid GOOGLE_APPLICATION_CREDENTIALS_JSON"); }
+  if (!raw) {
+    throw new Error("Missing env GOOGLE_APPLICATION_CREDENTIALS_JSON.");
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    throw new Error("Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON.");
+  }
 }
 
 const credentials = getCredentialsFromEnv();
+
 const auth = new GoogleAuth({
   credentials,
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
-
-const spreadsheetId = "1RJ16ZSoYzFgeYUmeXo21PwkWfG07xC_5R8YqMAtys8s";
-
-// Sheet names
-const sheetAccounts = "Accounts";
-const sheetLogs = "Logs";
-const sheetAdmin = "Admin";
-const sheetDropdown = "Dropdown";
-const sheetFailed = "Failed Registration";
-
-// ✅ IMPORTANT: allow overriding ranges from Render ENV
-const POSITIONS_RANGE = process.env.POSITIONS_RANGE || `${sheetDropdown}!B2:B`;
-const PROVINCES_RANGE = process.env.PROVINCES_RANGE || `${sheetDropdown}!D2:D`;
-const STATUS_RANGE    = process.env.STATUS_RANGE    || `${sheetDropdown}!C2:C`;
 
 async function getClient() {
   const authClient = await auth.getClient();
   return google.sheets({ version: "v4", auth: authClient });
 }
 
+// ===== Your Google Sheet =====
+const spreadsheetId = "1RJ16ZSoYzFgeYUmeXo21PwkWfG07xC_5R8YqMAtys8s";
+
+const sheetAccounts = "Accounts";
+const sheetLogs = "Logs";
+const sheetAdmin = "Admin";
+const sheetDropdown = "Dropdown";
+const sheetFailed = "Failed Registration";
+
+// ✅ Ranges (overrideable)
+const POSITIONS_RANGE = process.env.POSITIONS_RANGE || `${sheetDropdown}!B2:B`;
+const PROVINCES_RANGE = process.env.PROVINCES_RANGE || `${sheetDropdown}!D2:D`;
+const STATUS_RANGE = process.env.STATUS_RANGE || `${sheetDropdown}!C2:C`;
+
+// ===== Helpers =====
 async function ensureLogsSheet(sheets) {
   const meta = await sheets.spreadsheets.get({ spreadsheetId });
   const exists = meta.data.sheets.some((s) => s.properties.title === sheetLogs);
@@ -68,6 +75,7 @@ async function ensureLogsSheet(sheets) {
 async function addLog(action, email, details = "") {
   const sheets = await getClient();
   await ensureLogsSheet(sheets);
+
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: `${sheetLogs}!A:D`,
@@ -78,23 +86,36 @@ async function addLog(action, email, details = "") {
 
 async function ensureColumns() {
   const sheets = await getClient();
+
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     range: `${sheetAccounts}!A1:L1`,
     valueInputOption: "RAW",
     requestBody: {
       values: [[
-        "Email","Password","Role","Status","CreatedAt","UpdatedAt","LastLogin",
-        "FirstName","MiddleName","LastName","Viber","Province",
+        "Email",
+        "Password",
+        "Role",
+        "Status",
+        "CreatedAt",
+        "UpdatedAt",
+        "LastLogin",
+        "FirstName",
+        "MiddleName",
+        "LastName",
+        "Viber",
+        "Province",
       ]],
     },
   });
+
   await ensureLogsSheet(sheets);
 }
 
 async function loadAccounts() {
   const sheets = await getClient();
   await ensureColumns();
+
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: `${sheetAccounts}!A2:L`,
@@ -129,10 +150,18 @@ async function saveAccount({ email, password, role, firstName, middleName, lastN
     valueInputOption: "RAW",
     requestBody: {
       values: [[
-        email, password, role, "active",
-        now, now, "",
-        firstName, middleName || "", lastName,
-        viber, province,
+        email,
+        password,
+        role,
+        "active",
+        now,
+        now,
+        "",
+        firstName,
+        middleName || "",
+        lastName,
+        viber,
+        province,
       ]],
     },
   });
@@ -143,6 +172,7 @@ async function saveAccount({ email, password, role, firstName, middleName, lastN
 async function updateLastLogin(email) {
   const sheets = await getClient();
   const accounts = await loadAccounts();
+
   const index = accounts.findIndex((a) => a.email.toLowerCase() === email.toLowerCase());
   if (index === -1) return;
 
@@ -159,15 +189,17 @@ async function updateLastLogin(email) {
   await addLog("Login", email, "User logged in");
 }
 
-// Admin allowed only if exists in Admin sheet
+// Admin role allowed only if match exists in Admin sheet (A=FN, B=MN, C=LN, D=Email)
 async function isAuthorizedAdmin(firstName, middleName, lastName, email) {
   const sheets = await getClient();
+
   const result = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: `${sheetAdmin}!A2:D`,
   });
 
   const rows = result.data.values || [];
+
   const fn = (firstName || "").toLowerCase().trim();
   const mn = (middleName || "").toLowerCase().trim();
   const ln = (lastName || "").toLowerCase().trim();
@@ -182,92 +214,20 @@ async function isAuthorizedAdmin(firstName, middleName, lastName, email) {
   });
 }
 
-// ===== Email (OTP) =====
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-});
+function uniqNonEmpty(values) {
+  return [...new Set(values.map((v) => (v || "").trim()).filter((v) => v.length > 0))];
+}
 
-const otpStore = new Map();      // email -> { otp, expiresAt, resendReadyAt }
-const verifiedStore = new Map(); // email -> { expiresAt }
+async function readColumnRange(range) {
+  const sheets = await getClient();
+  const result = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+  const rows = result.data.values || [];
+  return uniqNonEmpty(rows.map((r) => r[0]));
+}
 
-app.get("/api/email-debug", async (req, res) => {
-  try {
-    await transporter.verify();
-    res.json({ success: true, message: "SMTP ready ✅" });
-  } catch (e) {
-    res.status(500).json({ success: false, message: e.message });
-  }
-});
+// ===== ROUTES =====
 
-app.post("/api/send-otp", async (req, res) => {
-  try {
-    const em = String(req.body?.email || "").trim().toLowerCase();
-    if (!em || !em.includes("@")) return res.json({ success: false, message: "Valid email required." });
-
-    const existing = otpStore.get(em);
-    if (existing && Date.now() < existing.resendReadyAt) {
-      const waitSec = Math.ceil((existing.resendReadyAt - Date.now()) / 1000);
-      return res.json({ success: false, message: `Please wait ${waitSec}s before resending OTP.` });
-    }
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore.set(em, {
-      otp,
-      expiresAt: Date.now() + 5 * 60 * 1000,
-      resendReadyAt: Date.now() + 30 * 1000,
-    });
-
-    await transporter.sendMail({
-      from: `"PSA NID System" <${process.env.EMAIL_USER}>`,
-      to: em,
-      subject: "PSA NID System - OTP Verification Code",
-      text: `Your OTP is ${otp}. It expires in 5 minutes.`,
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.5">
-          <h2 style="margin:0 0 10px">OTP Verification</h2>
-          <p>Your OTP code is:</p>
-          <div style="font-size:28px;font-weight:800;letter-spacing:4px;margin:10px 0">${otp}</div>
-          <p>Expires in <b>5 minutes</b>.</p>
-        </div>
-      `,
-    });
-
-    await addLog("Send OTP", em, "OTP sent");
-    res.json({ success: true });
-  } catch (err) {
-    console.error("SEND OTP ERROR:", err);
-    res.status(500).json({
-      success: false,
-      message: "Failed to send OTP: " + (err?.message || "unknown error"),
-    });
-  }
-});
-
-app.post("/api/verify-otp", async (req, res) => {
-  try {
-    const em = String(req.body?.email || "").trim().toLowerCase();
-    const code = String(req.body?.otp || "").trim();
-
-    const rec = otpStore.get(em);
-    if (!rec) return res.json({ success: false, message: "No OTP found. Please resend." });
-    if (Date.now() > rec.expiresAt) {
-      otpStore.delete(em);
-      return res.json({ success: false, message: "OTP expired. Please resend." });
-    }
-    if (rec.otp !== code) return res.json({ success: false, message: "Invalid OTP." });
-
-    otpStore.delete(em);
-    verifiedStore.set(em, { expiresAt: Date.now() + 10 * 60 * 1000 });
-    await addLog("Verify OTP", em, "OTP verified");
-    res.json({ success: true });
-  } catch (err) {
-    console.error("VERIFY OTP ERROR:", err);
-    res.status(500).json({ success: false, message: "Server error verifying OTP." });
-  }
-});
-
-// ====================== DROPDOWN DEBUG (NEW) ======================
+// dropdown debug
 app.get("/api/dropdown-debug", async (req, res) => {
   try {
     const sheets = await getClient();
@@ -275,10 +235,9 @@ app.get("/api/dropdown-debug", async (req, res) => {
       spreadsheetId,
       range: `${sheetDropdown}!A1:Z20`,
     });
+
     res.json({
       success: true,
-      sheet: sheetDropdown,
-      note: "Check which column contains Positions/Provinces then set POSITIONS_RANGE/PROVINCES_RANGE env if needed.",
       preview: result.data.values || [],
       ranges: { POSITIONS_RANGE, PROVINCES_RANGE, STATUS_RANGE },
     });
@@ -288,61 +247,29 @@ app.get("/api/dropdown-debug", async (req, res) => {
   }
 });
 
-function uniqNonEmpty(values) {
-  return [...new Set(values.map(v => (v || "").trim()).filter(v => v.length > 0))];
-}
-
-async function readColumnRange(range) {
-  const sheets = await getClient();
-  const result = await sheets.spreadsheets.values.get({ spreadsheetId, range });
-  const rows = result.data.values || [];
-  return uniqNonEmpty(rows.map(r => r[0]));
-}
-
-// Positions
+// positions
 app.get("/api/positions", async (req, res) => {
   try {
     const positions = await readColumnRange(POSITIONS_RANGE);
-
-    // If empty, still return success but include message for debugging
-    if (!positions.length) {
-      await addLog("Positions Empty", "system", `Range used: ${POSITIONS_RANGE}`);
-      return res.json({
-        success: true,
-        positions: [],
-        message: `No positions found. Check Google Sheet '${sheetDropdown}' and range '${POSITIONS_RANGE}'.`,
-      });
-    }
-
-    res.json({ success: true, positions });
+    res.json({ success: true, positions, message: positions.length ? "" : `No positions in ${POSITIONS_RANGE}` });
   } catch (err) {
     console.error("GET /api/positions:", err);
-    res.status(500).json({ success: false, message: "Error reading positions: " + (err.message || "") });
+    res.status(500).json({ success: false, message: "Error reading positions." });
   }
 });
 
-// Provinces
+// provinces
 app.get("/api/provinces", async (req, res) => {
   try {
     const provinces = await readColumnRange(PROVINCES_RANGE);
-
-    if (!provinces.length) {
-      await addLog("Provinces Empty", "system", `Range used: ${PROVINCES_RANGE}`);
-      return res.json({
-        success: true,
-        provinces: [],
-        message: `No provinces found. Check Google Sheet '${sheetDropdown}' and range '${PROVINCES_RANGE}'.`,
-      });
-    }
-
-    res.json({ success: true, provinces });
+    res.json({ success: true, provinces, message: provinces.length ? "" : `No provinces in ${PROVINCES_RANGE}` });
   } catch (err) {
     console.error("GET /api/provinces:", err);
-    res.status(500).json({ success: false, message: "Error reading provinces: " + (err.message || "") });
+    res.status(500).json({ success: false, message: "Error reading provinces." });
   }
 });
 
-// Status options
+// status options
 app.get("/api/status-options", async (req, res) => {
   try {
     const statuses = await readColumnRange(STATUS_RANGE);
@@ -353,64 +280,59 @@ app.get("/api/status-options", async (req, res) => {
   }
 });
 
-// Admin eligible
+// admin eligible
 app.post("/api/admin-eligible", async (req, res) => {
   try {
     const { firstName, middleName, lastName, email } = req.body || {};
     if (!firstName || !lastName || !email) return res.json({ success: true, eligible: false });
+
     const eligible = await isAuthorizedAdmin(firstName, middleName, lastName, email);
-    res.json({ success: true, eligible });
+    return res.json({ success: true, eligible });
   } catch (err) {
     console.error("POST /api/admin-eligible:", err);
-    res.status(500).json({ success: false, eligible: false });
+    return res.status(500).json({ success: false, eligible: false });
   }
 });
 
-// Register (requires verified OTP)
+// REGISTER (NO OTP)
 app.post("/api/register", async (req, res) => {
   const { email, password, role, firstName, middleName, lastName, viber, province } = req.body || {};
+
   if (!email || !password || !role || !firstName || !lastName || !viber || !province) {
     return res.json({ success: false, message: "Missing required fields." });
   }
 
-  const em = String(email).trim().toLowerCase();
-  const v = verifiedStore.get(em);
-  if (!v || Date.now() > v.expiresAt) {
-    verifiedStore.delete(em);
-    return res.json({ success: false, message: "Email not verified. Verify OTP first." });
-  }
-
   try {
     const accounts = await loadAccounts();
-    if (accounts.some((a) => a.email.toLowerCase() === em)) {
+
+    if (accounts.some((a) => a.email.toLowerCase() === email.toLowerCase())) {
       return res.json({ success: false, message: "Email already exists" });
     }
 
     if (role === "admin") {
-      const allowed = await isAuthorizedAdmin(firstName, middleName, lastName, em);
+      const allowed = await isAuthorizedAdmin(firstName, middleName, lastName, email);
       if (!allowed) {
-        await addLog("Admin Register Blocked", em, "Not in Admin sheet");
+        await addLog("Admin Register Blocked", email, "Not in Admin sheet");
         return res.json({ success: false, message: "Not authorized for Admin role." });
       }
     }
 
-    await saveAccount({ email: em, password, role, firstName, middleName, lastName, viber, province });
-    verifiedStore.delete(em);
+    await saveAccount({ email, password, role, firstName, middleName, lastName, viber, province });
     res.json({ success: true });
   } catch (err) {
-    console.error("POST /api/register:", err);
+    console.error("Error in POST /api/register:", err.message || err);
     res.status(500).json({ success: false, message: "Server error." });
   }
 });
 
-// Login
+// LOGIN
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.json({ success: false, message: "Missing email or password" });
 
   try {
     const accounts = await loadAccounts();
-    const user = accounts.find((a) => a.email.toLowerCase() === String(email).toLowerCase());
+    const user = accounts.find((a) => a.email.toLowerCase() === email.toLowerCase());
 
     if (!user) return res.json({ success: false, message: "Invalid email or password" });
     if (user.password !== password) return res.json({ success: false, message: "Invalid email or password" });
@@ -422,16 +344,16 @@ app.post("/api/login", async (req, res) => {
     await updateLastLogin(email);
     res.json({ success: true, role: user.role });
   } catch (err) {
-    console.error("POST /api/login:", err);
+    console.error("Error in POST /api/login:", err.message || err);
     res.status(500).json({ success: false, message: "Server error." });
   }
 });
 
-// Accounts list for admin table
+// Admin accounts list
 app.get("/api/accounts", async (req, res) => {
   try {
     const accounts = await loadAccounts();
-    res.json(accounts.map(a => ({
+    res.json(accounts.map((a) => ({
       email: a.email,
       role: a.role,
       status: a.status,
@@ -444,7 +366,9 @@ app.get("/api/accounts", async (req, res) => {
 });
 
 // 404
-app.use((req, res) => res.status(404).json({ success: false, message: `Route not found: ${req.method} ${req.originalUrl}` }));
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: `Route not found: ${req.method} ${req.originalUrl}` });
+});
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("🔥 server running on port", PORT));
+app.listen(PORT, () => console.log("🔥 server running on port " + PORT));
