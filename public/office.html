@@ -19,109 +19,49 @@
       --okbg:#eaf7ef; --okbd:#bfe7cb; --ok:#0f5132;
       --errbg:#fdecec; --errbd:#f2b8b8; --err:#842029;
     }
-
     *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      font-family: Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-    }
+    body{ margin:0; font-family: Arial, sans-serif; background: var(--bg); color: var(--text); }
 
-    /* Header */
     .topbar{
-      position: sticky;
-      top:0;
-      z-index: 10;
+      position: sticky; top:0; z-index: 10;
       background: linear-gradient(90deg, var(--primary), var(--primary2));
-      color:#fff;
-      padding: 12px 18px;
+      color:#fff; padding: 12px 18px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.18);
     }
     .topbar-inner{
-      max-width: 1400px;
-      margin: 0 auto;
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 14px;
+      max-width: 1400px; margin: 0 auto;
+      display:flex; align-items:center; justify-content: space-between; gap: 14px;
     }
-    .brand{
-      display:flex;
-      align-items:center;
-      gap: 12px;
-      min-width: 260px;
-    }
-    .logos{
-      display:flex;
-      align-items:center;
-      gap: 10px;
-    }
-    .logo{
-      height: 42px;
-      width: 42px;
-      border-radius: 50%;
-      background:#fff;
-      padding: 4px;
-      object-fit: contain;
-    }
-    .brand-text h1{ margin:0; font-size: 16px; letter-spacing: 0.2px; }
-    .brand-text p{ margin:2px 0 0; font-size: 12px; opacity: 0.9; }
+    .brand{ display:flex; align-items:center; gap: 12px; min-width: 260px; }
+    .brand-text h1{ margin:0; font-size: 16px; }
+    .brand-text p{ margin:2px 0 0; font-size: 12px; opacity:.9; }
 
     .user-pill{
-      display:flex;
-      align-items:center;
-      gap:10px;
+      display:flex; align-items:center; gap:10px;
       background: rgba(255,255,255,0.14);
       border: 1px solid rgba(255,255,255,0.22);
-      padding: 8px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      white-space: nowrap;
+      padding: 8px 10px; border-radius: 999px; font-size: 12px;
     }
     .user-pill .dot{
-      height:8px; width:8px;
-      border-radius:50%;
-      background:#22c55e;
+      height:8px; width:8px; border-radius:50%; background:#22c55e;
       box-shadow: 0 0 0 3px rgba(34,197,94,0.22);
     }
 
-    /* Layout */
     .layout{
-      max-width: 1400px;
-      margin: 18px auto;
-      padding: 0 14px;
-      display: grid;
-      grid-template-columns: 260px 1fr;
-      gap: 16px;
+      max-width: 1400px; margin: 18px auto; padding: 0 14px;
+      display: grid; grid-template-columns: 260px 1fr; gap: 16px;
     }
-
-    /* Sidebar */
     .sidebar{
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); box-shadow: var(--shadow);
       padding: 14px;
       height: calc(100vh - 110px);
-      position: sticky;
-      top: 78px;
-      overflow:auto;
+      position: sticky; top: 78px; overflow:auto;
     }
-    .side-title{
-      font-weight: 800;
-      color: var(--primary);
-      margin: 4px 0 12px;
-      font-size: 14px;
-    }
-    .nav{
-      display:flex;
-      flex-direction: column;
-      gap: 8px;
-    }
+    .side-title{ font-weight: 800; color: var(--primary); margin: 4px 0 12px; font-size: 14px; }
+    .nav{ display:flex; flex-direction: column; gap: 8px; }
     .nav button{
-      width:100%;
-      text-align:left;
+      width:100%; text-align:left;
       border: 1px solid var(--border);
       background:#f8fbff;
       padding: 10px 12px;
@@ -129,113 +69,58 @@
       cursor:pointer;
       font-weight: 700;
       color:#0f172a;
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 10px;
-      transition: transform .06s ease, background .2s ease, border .2s ease;
+      display:flex; align-items:center; justify-content: space-between;
     }
     .nav button:hover{ background:#eef5ff; border-color:#cfe0ff; }
-    .nav button:active{ transform: translateY(1px); }
-    .nav button.active{
-      background: linear-gradient(90deg, rgba(0,51,160,0.12), rgba(0,86,214,0.10));
-      border-color: rgba(0,51,160,0.28);
-      color: var(--primary);
-    }
-    .nav small{ color: var(--muted); font-weight: 700; }
 
     .logout{
       margin-top: 12px;
       border-top: 1px dashed var(--border);
       padding-top: 12px;
-      display:flex;
-      flex-direction: column;
-      gap: 8px;
     }
-    .link-btn{
-      display:block;
-      text-decoration:none;
-      text-align:center;
-      background:#fff;
-      border: 1px solid var(--border);
-      color:#0f172a;
-      font-weight: 800;
-      padding: 10px 12px;
-      border-radius: 12px;
+    .logout a{
+      display:block; text-decoration:none; text-align:center;
+      background:#fff; border: 1px solid #f1b4b4; color:#b91c1c;
+      font-weight: 800; padding: 10px 12px; border-radius: 12px;
     }
-    .link-btn:hover{ background:#f8fafc; }
-    .link-btn.danger{
-      border-color: #f1b4b4;
-      color:#b91c1c;
-    }
-    .link-btn.danger:hover{ background:#fff5f5; }
+    .logout a:hover{ background:#fff5f5; }
 
-    /* Main */
-    .main{
-      display:flex;
-      flex-direction: column;
-      gap: 16px;
-      min-height: calc(100vh - 110px);
-    }
+    .main{ display:flex; flex-direction: column; gap: 16px; min-height: calc(100vh - 110px); }
     .card{
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); box-shadow: var(--shadow);
       padding: 16px;
     }
     .card h2{ margin: 0 0 6px; color: var(--primary); font-size: 18px; }
     .card p{ margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 
-    /* Controls */
     .controls{
-      display:flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items:center;
-      margin-top: 10px;
+      display:flex; gap: 10px; flex-wrap: wrap; align-items:center; margin-top: 10px;
     }
-    .input, .select{
+    .input{
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 10px 12px;
       font-size: 14px;
       outline:none;
       background:#fff;
+      flex: 1;
+      min-width: 260px;
     }
-    .input{ min-width: 260px; flex: 1; }
-    .select{ min-width: 200px; }
-    .input:focus, .select:focus{
-      border-color: rgba(0,51,160,0.35);
-      box-shadow: 0 0 0 3px rgba(0,51,160,0.12);
-    }
-
     .btn{
-      border: none;
-      border-radius: 12px;
+      border: none; border-radius: 12px;
       padding: 10px 14px;
       background: var(--primary);
-      color: white;
-      font-weight: 800;
+      color: white; font-weight: 800;
       cursor: pointer;
       box-shadow: 0 6px 14px rgba(0,51,160,0.22);
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
+      display:inline-flex; align-items:center; gap:10px;
     }
-    .btn:hover{ filter: brightness(0.96); }
-    .btn.secondary{
-      background:#e9f0ff;
-      color: var(--primary);
-      border: 1px solid #cfe0ff;
-      box-shadow: none;
-    }
+    .btn.secondary{ background:#e9f0ff; color: var(--primary); border: 1px solid #cfe0ff; box-shadow:none; }
     .btn:disabled{ opacity:.65; cursor:not-allowed; box-shadow:none; }
 
     .spinner{
-      width:16px;
-      height:16px;
-      border-radius:50%;
+      width:16px; height:16px; border-radius:50%;
       border:2px solid rgba(255,255,255,0.55);
       border-top-color:#fff;
       animation: spin 0.8s linear infinite;
@@ -244,47 +129,22 @@
     .btn.loading .spinner{ display:inline-block; }
     @keyframes spin{ to { transform: rotate(360deg); } }
 
-    /* Table */
-    .table-wrap{ overflow:auto; margin-top: 12px; border-radius: 12px; border: 1px solid var(--border); }
-    table{ width:100%; border-collapse: collapse; min-width: 900px; background:#fff; }
-    th, td{ padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
-    th{
-      background: #f3f7ff;
-      color:#0f172a;
-      text-align:left;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
-    td{ color:#111827; }
-    .badge{
-      display:inline-block;
-      padding: 4px 8px;
-      border-radius: 999px;
-      font-weight: 800;
-      font-size: 11px;
-      border: 1px solid var(--border);
-      background:#f8fafc;
-    }
-
     .alert{
-      margin-top: 12px;
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      font-size: 13px;
-      display:none;
-      font-weight: 700;
+      margin-top: 12px; padding: 10px 12px; border-radius: 12px;
+      border: 1px solid var(--border); font-size: 13px; display:none; font-weight: 700;
     }
     .alert.ok{ display:block; background: var(--okbg); border-color: var(--okbd); color: var(--ok); }
     .alert.err{ display:block; background: var(--errbg); border-color: var(--errbd); color: var(--err); }
 
-    /* Responsive */
+    .table-wrap{ overflow:auto; margin-top: 12px; border-radius: 12px; border: 1px solid var(--border); }
+    table{ width:100%; border-collapse: collapse; min-width: 900px; background:#fff; }
+    th, td{ padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    th{ background: #f3f7ff; color:#0f172a; text-align:left; position: sticky; top: 0; z-index: 1; }
+
     @media (max-width: 950px){
       .layout{ grid-template-columns: 1fr; }
       .sidebar{ height:auto; position: relative; top:auto; }
       .input{ min-width: 100%; }
-      .select{ min-width: 100%; }
     }
   </style>
 </head>
@@ -293,13 +153,9 @@
   <div class="topbar">
     <div class="topbar-inner">
       <div class="brand">
-        <div class="logos">
-          <img class="logo" src="assets/images/psa.png" alt="PSA Logo">
-          <img class="logo" src="assets/images/philsys.png" alt="PhilSys Logo">
-        </div>
         <div class="brand-text">
           <h1>PSA • National ID System</h1>
-          <p>Office-based Personnel</p>
+          <p>Office-based (Auto Province Filter)</p>
         </div>
       </div>
 
@@ -315,31 +171,23 @@
       <div class="side-title">Menu</div>
 
       <nav class="nav">
-        <button id="btnBackUser" type="button">
-          User Portal <small>Back</small>
-        </button>
-
-        <button id="btnOffice" class="active" type="button">
-          Office Personnel <small>List</small>
+        <button type="button" onclick="location.href='user.html'">
+          ← Back <small>User Portal</small>
         </button>
       </nav>
 
       <div class="logout">
-        <a class="link-btn" href="index.html">← Back to Login</a>
-        <a class="link-btn danger" href="index.html" id="logoutLink">← Logout</a>
+        <a href="index.html" id="logoutLink">← Logout</a>
       </div>
     </aside>
 
     <main class="main">
       <section class="card">
-        <h2>Office-based Personnel</h2>
-        <p>Search / filter the personnel list.</p>
+        <h2>Failed Registration (B–G)</h2>
+        <p id="subText">Loading records...</p>
 
         <div class="controls">
-          <input id="qInput" class="input" type="text" placeholder="Search name/email/position..." />
-          <select id="provFilter" class="select">
-            <option value="">All Provinces</option>
-          </select>
+          <input id="qInput" class="input" type="text" placeholder="Search TRN / name / address..." />
           <button id="refreshBtn" class="btn secondary" type="button">
             <span class="spinner" id="refreshSpinner"></span>
             <span>Refresh</span>
@@ -353,12 +201,12 @@
           <table>
             <thead>
               <tr>
-                <th>Full Name</th>
-                <th>Email</th>
-                <th>Viber</th>
-                <th>Position</th>
-                <th>Province</th>
-                <th>Role</th>
+                <th>TRN (Col B)</th>
+                <th>Fullname (Col C)</th>
+                <th>Col D</th>
+                <th>Col E</th>
+                <th>Col F</th>
+                <th>Province (Col G)</th>
               </tr>
             </thead>
             <tbody id="tbody">
@@ -370,6 +218,6 @@
     </main>
   </div>
 
-  <script src="assets/js/office.js"></script>
+  <script src="assets/js/office.js?v=1" defer></script>
 </body>
 </html>
