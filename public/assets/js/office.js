@@ -46,9 +46,9 @@ function render(rows){
     <tr>
       <td>${escapeHtml(r.trn)}</td>
       <td><b>${escapeHtml(r.fullname)}</b></td>
-      <td>${escapeHtml(r.colD)}</td>
-      <td>${escapeHtml(r.colE)}</td>
-      <td>${escapeHtml(r.colF)}</td>
+      <td>${escapeHtml(r.contactNo)}</td>
+      <td>${escapeHtml(r.emailAddress)}</td>
+      <td>${escapeHtml(r.permanentAddress)}</td>
       <td>${escapeHtml(r.province)}</td>
     </tr>
   `).join("");
@@ -60,7 +60,14 @@ function applyFilters(){
 
   if (q){
     rows = rows.filter(r => {
-      const blob = [r.trn, r.fullname, r.colD, r.colE, r.colF, r.province].map(normalize).join(" ");
+      const blob = [
+        r.trn,
+        r.fullname,
+        r.contactNo,
+        r.emailAddress,
+        r.permanentAddress,
+        r.province
+      ].map(normalize).join(" ");
       return blob.includes(q);
     });
   }
