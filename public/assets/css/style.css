@@ -21,7 +21,7 @@ body {
   padding: 18px;
 }
 
-/* ===== Auth Card ===== */
+/* ===== Auth Card (SINGLE COLUMN) ===== */
 .auth-box {
   background: rgba(255,255,255,0.92);
   backdrop-filter: blur(8px);
@@ -180,7 +180,28 @@ input:focus, select:focus {
   color: #6b7280;
 }
 
-/* ✅ ADMIN styles scoped to avoid conflict with user.html inline styles */
+/* Notes */
+.note{
+  margin-top: 6px;
+  font-size: 12px;
+  text-align: center;
+}
+.note.ok{ color:#065f46; }
+.note.bad{ color:#b91c1c; }
+
+.hint{
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 6px;
+}
+
+/* Responsive small screens */
+@media (max-width: 420px) {
+  .auth-box { padding: 22px 18px 16px; }
+  .title { font-size: 20px; }
+}
+
+/* ✅ ADMIN styles (scoped) */
 .admin-page .sidebar {
   width: 220px;
   height: 100vh;
@@ -200,7 +221,8 @@ input:focus, select:focus {
   border-radius: 6px;
   margin-bottom: 8px;
 }
-.admin-page .side-link.active, .admin-page .side-link:hover {
+.admin-page .side-link.active,
+.admin-page .side-link:hover {
   background: #374151;
   color: white;
 }
@@ -236,27 +258,7 @@ input:focus, select:focus {
   border: 1px solid #aaa;
 }
 
-/* Responsive small screens */
-@media (max-width: 420px) {
-  .auth-box { padding: 22px 18px 16px; }
-  .title { font-size: 20px; }
-}
-
-.form-row { display: flex; gap: 10px; }
-.form-row > div { flex: 1; }
-@media (max-width: 480px) {
-  .form-row { flex-direction: column; }
-}
-
-.note{
-  margin-top: 6px;
-  font-size: 12px;
-  text-align: center;
-}
-.note.ok{ color:#065f46; }
-.note.bad{ color:#b91c1c; }
-
-/* ===== FIXED WIDTH (TRN Search + Status + Date) ===== */
+/* ===== USER PAGE fixed width helper (if used) ===== */
 .fixed-width{ width: 180px; max-width: none; }
 #trnInput{ width: 180px; max-width: none; }
 #statusSelect, #newTrnInput, #dateRecapInput{ width: 180px; max-width: none; }
@@ -265,211 +267,3 @@ input:focus, select:focus {
   border-color:#ef4444 !important;
   box-shadow: 0 0 0 3px rgba(239,68,68,0.20) !important;
 }
-.btn-secondary{
-  width: 100%;
-  padding: 12px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-weight: 800;
-  margin-top: 10px;
-  background: #e9f0ff;
-  color: #1f3bb3;
-  border: 1px solid rgba(76,110,245,0.35);
-}
-
-.btn-ghost{
-  width: 100%;
-  padding: 12px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-weight: 800;
-  margin-top: 10px;
-  background: transparent;
-  color: #6b7280;
-  border: 1px solid rgba(107,114,128,0.35);
-}
-
-.otp-wrap{
-  margin-top: 14px;
-}
-
-.btn-secondary{
-  width: 100%;
-  padding: 12px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-weight: 800;
-  margin-top: 10px;
-  background: #e9f0ff;
-  color: #1f3bb3;
-  border: 1px solid rgba(76,110,245,0.35);
-}
-.btn-secondary:disabled{
-  opacity: .65;
-  cursor: not-allowed;
-}
-
-.btn-ghost{
-  width: 100%;
-  padding: 12px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-weight: 800;
-  margin-top: 10px;
-  background: transparent;
-  color: #6b7280;
-  border: 1px solid rgba(107,114,128,0.35);
-}
-/* ================================
-   Register UI Improvements (2-col)
-   ================================ */
-
-.auth-box-wide{
-  width: 760px;         /* wider for 2 columns */
-  max-width: 100%;
-}
-
-.reg-grid{
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 6px;
-}
-
-.reg-col{
-  min-width: 0;
-}
-
-.section-card{
-  background: rgba(255,255,255,0.75);
-  border: 1px solid rgba(17,24,39,0.08);
-  border-radius: 14px;
-  padding: 14px;
-}
-
-.section-head{
-  margin-bottom: 10px;
-}
-
-.section-title{
-  font-weight: 900;
-  color: #0f172a;
-  font-size: 13px;
-  letter-spacing: .2px;
-}
-
-.section-sub{
-  font-size: 12px;
-  color: #6b7280;
-  margin-top: 2px;
-}
-
-.hint{
-  font-size: 11px;
-  color: #6b7280;
-  margin-top: 6px;
-}
-
-.two-col{
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-/* keep register button spacing nice */
-#registerForm .btn-primary{
-  margin-top: 14px;
-}
-
-/* responsive: collapse to 1 column */
-@media (max-width: 820px){
-  .auth-box-wide{ width: 420px; }
-  .reg-grid{ grid-template-columns: 1fr; }
-  .two-col{ grid-template-columns: 1fr; }
-}
-
-/* ===== FIX: Force 2-column Register on desktop/tablet ===== */
-
-/* make the register card wider */
-.auth-box-wide{
-  width: 860px;
-  max-width: 100%;
-}
-
-/* default = 2 columns */
-.reg-grid{
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-/* DO NOT force 420px width on medium screens */
-@media (max-width: 900px){
-  .auth-box-wide{
-    width: 92vw;
-    max-width: 860px;
-  }
-  .reg-grid{
-    grid-template-columns: 1fr 1fr; /* keep 2 columns */
-  }
-}
-
-/* only collapse to 1 column on small phones */
-@media (max-width: 560px){
-  .reg-grid{ grid-template-columns: 1fr; }
-  .two-col{ grid-template-columns: 1fr; }
-}
-
-/* ===== Make Login narrow even if container is wide ===== */
-.login-pane{
-  max-width: 520px;      /* adjust: 480 / 520 / 560 */
-  margin: 0 auto;        /* center inside wide card */
-}
-
-/* keep register full width (2 cols) */
-.register-pane{
-  width: 100%;
-}
-
-/* optional: make inputs not too tall-wide looking */
-.login-pane input{
-  border-radius: 12px;
-}
-
-/* optional: button same width as login form */
-.login-pane .btn-primary{
-  width: 100%;
-}
-
-/* ===== HARD REVERT: force auth card back to original size ===== */
-.auth-box{
-  width: 380px !important;
-  max-width: 100% !important;
-}
-
-/* disable wide layout if still present */
-.auth-box-wide{
-  width: auto !important;
-  max-width: 100% !important;
-}
-
-/* remove 2-col register styles if still present */
-.reg-grid,
-.two-col{
-  display: block !important;
-}
-.reg-col{
-  min-width: 0 !important;
-}
-.section-card{
-  background: transparent !important;
-  border: none !important;
-  padding: 0 !important;
-  border-radius: 0 !important;
-}
-.section-head,
-.section-title,
-.section-sub{
-  display: none !important;
-}
-
-
