@@ -9,14 +9,9 @@
 <body class="centered auth-bg">
 
   <div class="auth-box">
-    <!-- Logos -->
     <div class="logo-row">
-      <div class="logo-wrap">
-        <img src="assets/images/psa.png" alt="PSA Logo">
-      </div>
-      <div class="logo-wrap">
-        <img src="assets/images/philsys.png" alt="PhilSys Logo">
-      </div>
+      <div class="logo-wrap"><img src="assets/images/psa.png" alt="PSA Logo"></div>
+      <div class="logo-wrap"><img src="assets/images/philsys.png" alt="PhilSys Logo"></div>
     </div>
 
     <h1 class="title" style="font-size: 12px;">Philippine Statistics Authority</h1>
@@ -28,7 +23,7 @@
       <button id="registerTab" class="tab" type="button">Register</button>
     </div>
 
-    <!-- LOGIN FORM -->
+    <!-- LOGIN -->
     <form id="loginForm" class="form">
       <label>Email</label>
       <input type="email" id="loginEmail" placeholder="name@example.gov.ph" required>
@@ -40,7 +35,7 @@
       <p id="loginMsg" class="msg hidden"></p>
     </form>
 
-    <!-- REGISTER FORM -->
+    <!-- REGISTER -->
     <form id="registerForm" class="form" style="display:none;">
       <div class="form-row">
         <div>
@@ -60,13 +55,7 @@
       <input type="email" id="regEmail" required>
 
       <label for="regViber">Viber Number</label>
-      <input
-        id="regViber"
-        type="text"
-        inputmode="numeric"
-        placeholder="09XXXXXXXXX"
-        required
-      />
+      <input id="regViber" type="text" inputmode="numeric" placeholder="09XXXXXXXXX" required/>
 
       <label>Position</label>
       <select id="regPosition" required>
@@ -92,64 +81,37 @@
 
       <div id="adminNote" class="note bad">Admin role requires authorization.</div>
 
-      <button type="submit" class="btn-primary" id="sendOtpBtn">Send OTP</button>
+      <button type="submit" class="btn-primary" id="sendOtpBtn">Create Account</button>
       <p id="regMsg" class="msg hidden"></p>
     </form>
 
-    <!-- OTP FORM (Hidden) -->
-    <div id="otpWrap" class="otp-wrap hidden">
-      <div class="note" style="text-align:center;">
-        We sent an OTP to: <b id="otpEmailText">your@email.com</b>
-      </div>
+    <!-- OTP SECTION -->
+    <div id="otpWrap" class="hidden" style="margin-top:14px;">
+      <p class="subtitle" style="margin:0 0 10px;">
+        Enter the OTP sent to <b id="otpEmailText"></b>
+      </p>
 
-      <label>Enter OTP (6 digits)</label>
-      <input type="text" id="otpCode" inputmode="numeric" maxlength="6" placeholder="123456">
+      <label>OTP Code</label>
+      <input id="otpCode" type="text" inputmode="numeric" maxlength="6" placeholder="123456" />
 
-      <button type="button" class="btn-primary" id="verifyOtpBtn">Verify OTP</button>
-
-      <button type="button" class="btn-secondary" id="resendOtpBtn">Resend OTP</button>
-      <button type="button" class="btn-ghost" id="cancelOtpBtn">Cancel</button>
+      <button id="verifyOtpBtn" class="btn-primary" type="button">Verify OTP</button>
 
       <p id="otpMsg" class="msg hidden"></p>
+
+      <p class="subtitle" style="margin-top:10px;">
+        OTP expires in <b id="otpTimer">05:00</b>
+      </p>
+
+      <button id="resendOtpBtn" class="btn-secondary" type="button" disabled>
+        Resend OTP (<span id="resendCd">30</span>s)
+      </button>
+
+      <button id="cancelOtpBtn" class="btn-ghost" type="button">Cancel</button>
     </div>
 
-    <div class="auth-footer">
-      © 2025 Philippine Statistics Authority • National ID System
-    </div>
+    <div class="auth-footer">© 2025 Philippine Statistics Authority • National ID System</div>
   </div>
-<!-- OTP SECTION -->
-<div id="otpWrap" class="hidden" style="margin-top:14px;">
-  <p class="subtitle">
-    Enter the OTP sent to <b id="otpEmailText"></b>
-  </p>
 
-  <input
-    id="otpCode"
-    type="text"
-    inputmode="numeric"
-    maxlength="6"
-    placeholder="Enter 6-digit OTP"
-  />
-
-  <button id="verifyOtpBtn" class="btn-primary">Verify OTP</button>
-
-  <p id="otpMsg" class="msg hidden"></p>
-
-  <p class="subtitle" style="margin-top:8px;">
-    OTP expires in <b id="otpTimer">05:00</b>
-  </p>
-
-  <button
-    id="resendOtpBtn"
-    class="btn-primary"
-    style="background:#e5e7eb;color:#374151;"
-    disabled
-  >
-    Resend OTP
-  </button>
-</div>
-
-  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/auth.js?v=12" defer></script>
 </body>
 </html>
-
