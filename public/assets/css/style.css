@@ -440,4 +440,36 @@ input:focus, select:focus {
   width: 100%;
 }
 
+/* ===== HARD REVERT: force auth card back to original size ===== */
+.auth-box{
+  width: 380px !important;
+  max-width: 100% !important;
+}
+
+/* disable wide layout if still present */
+.auth-box-wide{
+  width: auto !important;
+  max-width: 100% !important;
+}
+
+/* remove 2-col register styles if still present */
+.reg-grid,
+.two-col{
+  display: block !important;
+}
+.reg-col{
+  min-width: 0 !important;
+}
+.section-card{
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+.section-head,
+.section-title,
+.section-sub{
+  display: none !important;
+}
+
 
