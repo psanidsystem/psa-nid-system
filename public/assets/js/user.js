@@ -1,3 +1,16 @@
+// ===== AUTH GUARD (User Page) =====
+(() => {
+  const email = localStorage.getItem("email");
+  const role = localStorage.getItem("role");
+
+  // required to view user.html
+  if (!email || !role) {
+    // optional: preserve where they came from
+    location.replace("index.html");
+    return;
+  }
+})();
+
 const API = location.origin;
 
 let record = null;
@@ -214,3 +227,4 @@ trnInputEl && trnInputEl.addEventListener("keydown", (e) => {
     doSearch();
   }
 });
+
