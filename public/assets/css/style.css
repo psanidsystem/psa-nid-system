@@ -143,10 +143,42 @@ input:focus, select:focus {
   margin-top: 14px;
   box-shadow: 0 10px 18px rgba(76,110,245,0.22);
   transition: transform 0.08s, filter 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
 
 .btn-primary:hover { filter: brightness(0.97); }
 .btn-primary:active { transform: translateY(1px); }
+
+.btn-primary:disabled{
+  opacity: 0.80;
+  cursor: not-allowed;
+}
+
+/* ✅ Spinner inside button */
+.btn-spinner{
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid rgba(255,255,255,0.55);
+  border-top-color: #fff;
+  display: none;
+  animation: btnspin 0.75s linear infinite;
+}
+
+@keyframes btnspin{
+  to { transform: rotate(360deg); }
+}
+
+.btn-primary.loading .btn-spinner{
+  display: inline-block;
+}
+
+.btn-primary.loading{
+  filter: brightness(0.98);
+}
 
 /* ===== Messages ===== */
 .msg {
@@ -180,62 +212,6 @@ input:focus, select:focus {
   color: #6b7280;
 }
 
-/* ✅ ADMIN styles scoped to avoid conflict with user.html inline styles */
-.admin-page .sidebar {
-  width: 220px;
-  height: 100vh;
-  background: #1f2937;
-  color: white;
-  padding: 20px;
-  position: fixed;
-  top: 0;
-  left: 0;
-}
-.admin-page .side-title { font-size: 20px; margin-bottom: 20px; }
-.admin-page .side-link {
-  display: block;
-  color: #d1d5db;
-  text-decoration: none;
-  padding: 10px;
-  border-radius: 6px;
-  margin-bottom: 8px;
-}
-.admin-page .side-link.active, .admin-page .side-link:hover {
-  background: #374151;
-  color: white;
-}
-.admin-page .main {
-  margin-left: 240px;
-  padding: 30px;
-}
-.admin-page .card {
-  background: white;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 3px 12px rgba(0,0,0,0.15);
-}
-.admin-page .styled-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 15px;
-}
-.admin-page .styled-table th {
-  background: #4c6ef5;
-  color: white;
-  padding: 10px;
-}
-.admin-page .styled-table td {
-  padding: 10px;
-  border-bottom: 1px solid #ddd;
-}
-.admin-page .search {
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 10px;
-  border-radius: 8px;
-  border: 1px solid #aaa;
-}
-
 /* Responsive small screens */
 @media (max-width: 420px) {
   .auth-box { padding: 22px 18px 16px; }
@@ -255,11 +231,6 @@ input:focus, select:focus {
 }
 .note.ok{ color:#065f46; }
 .note.bad{ color:#b91c1c; }
-
-/* ===== FIXED WIDTH (TRN Search + Status + Date) ===== */
-.fixed-width{ width: 180px; max-width: none; }
-#trnInput{ width: 180px; max-width: none; }
-#statusSelect, #newTrnInput, #dateRecapInput{ width: 180px; max-width: none; }
 
 .invalid{
   border-color:#ef4444 !important;
