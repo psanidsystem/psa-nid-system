@@ -17,6 +17,18 @@ function hideMsg(el) {
   el.textContent = "";
 }
 
+// ===== Button loading helper =====
+function setBtnLoading(btn, isLoading, loadingText) {
+  if (!btn) return;
+
+  if (!btn.dataset.originalText) {
+    btn.dataset.originalText = btn.textContent;
+  }
+
+  btn.disabled = !!isLoading;
+  btn.textContent = isLoading ? (loadingText || "Loading...") : btn.dataset.originalText;
+}
+
 // Tabs
 loginTab.onclick = () => {
   loginTab.classList.add("active");
@@ -40,62 +52,60 @@ registerTab.onclick = async () => {
   checkAdminEligibility();
 };
 
-// Viber formatting
 // =======================
 // VIBER INPUT (09 + 11 DIGITS) - NO maxlength (spaces won't break)
 // =======================
 const regViber = document.getElementById("regViber");
 
 function formatViber(d) {
-  // d is digits only, max 11
-  // display as: 09XX XXX XXXX (optional)
   return d.replace(/^(\d{4})(\d{3})(\d{0,4}).*/, (_, a, b, c) =>
     [a, b, c].filter(Boolean).join(" ")
   );
 }
 
 function normalizeViber() {
-  // keep digits only
   let d = regViber.value.replace(/\D/g, "");
 
-  // allow if user types starting with 9
   if (d.startsWith("9")) d = "0" + d;
 
-  // force starts with 09 (only if user typed something)
   if (d.length > 0 && !d.startsWith("09")) {
     d = "09" + d.replace(/^0+/, "").replace(/^9/, "");
   }
 
-  // enforce 11 digits max (digits only)
   d = d.slice(0, 11);
-
-  // set formatted display
   regViber.value = formatViber(d);
 
-  // validate (digits must be 11 and starts with 09)
   regViber.classList.toggle("invalid", !(d.length === 11 && /^09\d{9}$/.test(d)));
 }
 
-// Always enforce digits + limit on every input/paste
 regViber.addEventListener("input", normalizeViber);
 regViber.addEventListener("blur", normalizeViber);
-
 
 // Dropdowns
 async function loadProvinces() {
   const sel = document.getElementById("regProvince");
   sel.innerHTML = `<option value="">-- Select Province --</option>`;
-  const r = await fetch(API + "/api/provinces");
-  const d = await r.json();
-  (d.provinces || []).forEach(p => sel.innerHTML += `<option value="${p}">${p}</option>`);
+
+  try {
+    const r = await fetch(API + "/api/provinces");
+    const d = await r.json();
+    (d.provinces || []).forEach((p) => (sel.innerHTML += `<option value="${p}">${p}</option>`));
+  } catch (e) {
+    console.error("loadProvinces error:", e);
+  }
 }
 
 async function loadPositions() {
   const sel = document.getElementById("regPosition");
   sel.innerHTML = `<option value="">-- Select Position --</option>`;
-  const r = await fetch(API + "/api/positions");
-  const d = await r.json();
-  (d.positions || []).forEach(p => sel.innerHTML += `<option value="${p}">${p}</option>`);
+
+  try {
+    const r = await fetch(API + "/api/positions");
+    const d = await r.json();
+    (d.positions || []).forEach((p) => (sel.innerHTML += `<option value="${p}">${p}</option>`));
+  } catch (e) {
+    console.error("loadPositions error:", e);
+  }
 }
 
 // Admin eligibility
@@ -108,7 +118,9 @@ function setAdmin(show) {
   const sel = document.getElementById("regRole");
   const note = document.getElementById("adminNote");
 
-  [...sel.options].forEach(o => { if (o.value === "admin") sel.remove(o.index); });
+  [...sel.options].forEach((o) => {
+    if (o.value === "admin") sel.remove(o.index);
+  });
 
   if (show) {
     sel.innerHTML += `<option value="admin">Admin</option>`;
@@ -130,16 +142,21 @@ async function checkAdminEligibility() {
 
   if (!body.firstName || !body.lastName || !body.email) return setAdmin(false);
 
-  const r = await fetch(API + "/api/admin-eligible", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const d = await r.json();
-  setAdmin(!!d.eligible);
+  try {
+    const r = await fetch(API + "/api/admin-eligible", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    setAdmin(!!d.eligible);
+  } catch (e) {
+    console.error("admin-eligible error:", e);
+    setAdmin(false);
+  }
 }
 
-["regFirstName", "regMiddleName", "regLastName", "regEmail"].forEach(id => {
+["regFirstName", "regMiddleName", "regLastName", "regEmail"].forEach((id) => {
   document.getElementById(id)?.addEventListener("input", checkAdminEligibility);
 });
 
@@ -151,19 +168,35 @@ loginForm.onsubmit = async (e) => {
   e.preventDefault();
   hideMsg(loginMsg);
 
-  const r = await fetch(API + "/api/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: loginEmail.value.trim(), password: loginPassword.value }),
-  });
+  const loginBtn = loginForm.querySelector('button[type="submit"]');
+  setBtnLoading(loginBtn, true, "Logging in...");
 
-  const d = await r.json();
-  if (!d.success) return showMsg(loginMsg, d.message, "error");
+  try {
+    const r = await fetch(API + "/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: loginEmail.value.trim(),
+        password: loginPassword.value,
+      }),
+    });
 
-  localStorage.setItem("email", loginEmail.value.trim());
-  localStorage.setItem("role", d.role);
+    const d = await r.json();
+    if (!d.success) {
+      showMsg(loginMsg, d.message || "Login failed.", "error");
+      return;
+    }
 
-  location.href = (d.role === "admin") ? "admin.html" : "user.html";
+    localStorage.setItem("email", loginEmail.value.trim());
+    localStorage.setItem("role", d.role);
+
+    location.href = d.role === "admin" ? "admin.html" : "user.html";
+  } catch (err) {
+    console.error("login error:", err);
+    showMsg(loginMsg, "Network/server error. Please try again.", "error");
+  } finally {
+    setBtnLoading(loginBtn, false);
+  }
 };
 
 // Register
@@ -177,37 +210,64 @@ registerForm.onsubmit = async (e) => {
   e.preventDefault();
   hideMsg(regMsg);
 
-  const viber = regViber.value.replace(/\D/g, "");
-  if (!/^09\d{9}$/.test(viber)) return showMsg(regMsg, "Invalid Viber number.", "error");
+  const regBtn = registerForm.querySelector('button[type="submit"]');
+  setBtnLoading(regBtn, true, "Creating...");
 
-  if (regPassword.value !== regConfirm.value) return showMsg(regMsg, "Passwords do not match.", "error");
-  if (!regPosition.value) return showMsg(regMsg, "Please select Position.", "error");
-  if (!regProvince.value) return showMsg(regMsg, "Please select Province.", "error");
-  if (!regRole.value) return showMsg(regMsg, "Please select Role.", "error");
+  try {
+    const viber = regViber.value.replace(/\D/g, "");
+    if (!/^09\d{9}$/.test(viber)) {
+      showMsg(regMsg, "Invalid Viber number.", "error");
+      return;
+    }
 
-  const body = {
-    email: regEmail.value.trim(),
-    password: regPassword.value,
-    role: regRole.value,
-    firstName: regFirstName.value.trim(),
-    middleName: regMiddleName.value.trim(),
-    lastName: regLastName.value.trim(),
-    viber,
-    position: regPosition.value,
-    province: regProvince.value,
-  };
+    if (regPassword.value !== regConfirm.value) {
+      showMsg(regMsg, "Passwords do not match.", "error");
+      return;
+    }
+    if (!regPosition.value) {
+      showMsg(regMsg, "Please select Position.", "error");
+      return;
+    }
+    if (!regProvince.value) {
+      showMsg(regMsg, "Please select Province.", "error");
+      return;
+    }
+    if (!regRole.value) {
+      showMsg(regMsg, "Please select Role.", "error");
+      return;
+    }
 
-  const r = await fetch(API + "/api/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+    const body = {
+      email: regEmail.value.trim(),
+      password: regPassword.value,
+      role: regRole.value,
+      firstName: regFirstName.value.trim(),
+      middleName: regMiddleName.value.trim(),
+      lastName: regLastName.value.trim(),
+      viber,
+      position: regPosition.value,
+      province: regProvince.value,
+    };
 
-  const d = await r.json();
-  if (!d.success) return showMsg(regMsg, d.message, "error");
+    const r = await fetch(API + "/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
 
-  showMsg(regMsg, "Account created successfully! You can now login.", "success");
-  registerForm.reset();
-  setAdmin(false);
+    const d = await r.json();
+    if (!d.success) {
+      showMsg(regMsg, d.message || "Registration failed.", "error");
+      return;
+    }
+
+    showMsg(regMsg, "Account created successfully! You can now login.", "success");
+    registerForm.reset();
+    setAdmin(false);
+  } catch (err) {
+    console.error("register error:", err);
+    showMsg(regMsg, "Network/server error. Please try again.", "error");
+  } finally {
+    setBtnLoading(regBtn, false);
+  }
 };
-
