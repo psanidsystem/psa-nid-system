@@ -143,6 +143,26 @@
 </head>
 <body>
 
+  <!-- ✅ AUTH GUARD (must be first) -->
+  <script>
+    (function () {
+      const email = localStorage.getItem("email");
+      const role = localStorage.getItem("role");
+
+      // require login
+      if (!email) {
+        location.replace("index.html");
+        return;
+      }
+
+      // allow only user role (change if needed later)
+      if (role !== "user") {
+        location.replace("index.html");
+        return;
+      }
+    })();
+  </script>
+
   <div class="topbar">
     <div class="topbar-inner">
       <div class="brand-text">
@@ -210,5 +230,20 @@
   </div>
 
   <script src="assets/js/office.js?v=1" defer></script>
+
+  <script>
+    // ✅ Show logged user
+    const emailEl = document.getElementById("userEmail");
+    if (emailEl) emailEl.textContent = localStorage.getItem("email") || "";
+
+    // ✅ Proper logout: clear + replace (para di maka back)
+    const logoutLink = document.getElementById("logoutLink");
+    logoutLink && logoutLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      localStorage.removeItem("email");
+      localStorage.removeItem("role");
+      location.replace("index.html");
+    });
+  </script>
 </body>
 </html>
