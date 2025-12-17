@@ -8,6 +8,23 @@
 
 <body class="admin-page">
 
+<!-- ✅ AUTH GUARD -->
+<script>
+  (function () {
+    const email = localStorage.getItem("email");
+    const role = localStorage.getItem("role");
+
+    if (!email) {
+      location.replace("index.html");
+      return;
+    }
+    if (role !== "admin") {
+      location.replace("index.html");
+      return;
+    }
+  })();
+</script>
+
 <div class="sidebar">
     <h2 class="side-title">Admin Panel</h2>
     <a class="side-link active">User Accounts</a>
@@ -35,5 +52,15 @@
 </div>
 
 <script src="assets/js/admin.js"></script>
+<script>
+  // ✅ safe logout for admin page
+  const logoutBtn = document.getElementById("logoutBtn");
+  logoutBtn && logoutBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    localStorage.removeItem("email");
+    localStorage.removeItem("role");
+    location.replace("index.html");
+  });
+</script>
 </body>
 </html>
