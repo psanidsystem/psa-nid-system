@@ -140,29 +140,34 @@
       .input{ min-width: 100%; }
     }
   </style>
-</head>
-<body>
 
-  <!-- ✅ AUTH GUARD (must be first) -->
+  <!-- ✅ AUTH GUARD (Office Page) -->
   <script>
     (function () {
       const email = localStorage.getItem("email");
       const role = localStorage.getItem("role");
+      const sessionAt = Number(localStorage.getItem("sessionAt") || "0");
 
-      // require login
-      if (!email) {
+      // same as user/admin (adjust if you want)
+      const MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
+
+      // require login + session
+      if (!email || !role || !sessionAt || (Date.now() - sessionAt) > MAX_AGE_MS) {
+        localStorage.removeItem("email");
+        localStorage.removeItem("role");
+        localStorage.removeItem("sessionAt");
         location.replace("index.html");
         return;
       }
 
-      // allow only user role (change if needed later)
-      if (role !== "user") {
-        location.replace("index.html");
-        return;
-      }
+      // ✅ for now: allow only logged-in users (admin can also access if you want)
+      // If you want ONLY user role, uncomment below:
+      // if (role !== "user") { location.replace("index.html"); return; }
     })();
   </script>
+</head>
 
+<body>
   <div class="topbar">
     <div class="topbar-inner">
       <div class="brand-text">
@@ -229,19 +234,20 @@
     </main>
   </div>
 
-  <script src="assets/js/office.js?v=1" defer></script>
+  <script src="assets/js/office.js?v=2" defer></script>
 
   <script>
     // ✅ Show logged user
     const emailEl = document.getElementById("userEmail");
     if (emailEl) emailEl.textContent = localStorage.getItem("email") || "";
 
-    // ✅ Proper logout: clear + replace (para di maka back)
+    // ✅ Proper logout: clear ALL session keys + replace (para di maka back)
     const logoutLink = document.getElementById("logoutLink");
     logoutLink && logoutLink.addEventListener("click", (e) => {
       e.preventDefault();
       localStorage.removeItem("email");
       localStorage.removeItem("role");
+      localStorage.removeItem("sessionAt");
       location.replace("index.html");
     });
   </script>
