@@ -2,9 +2,14 @@
 (() => {
   const email = localStorage.getItem("email");
   const role = localStorage.getItem("role");
+  const sessionAt = Number(localStorage.getItem("sessionAt") || "0");
 
-  // only admin can view admin.html
-  if (!email || role !== "admin") {
+  const MAX_AGE_MS = 30 * 60 * 1000;
+
+  if (!email || role !== "admin" || !sessionAt || Date.now() - sessionAt > MAX_AGE_MS) {
+    localStorage.removeItem("email");
+    localStorage.removeItem("role");
+    localStorage.removeItem("sessionAt");
     location.replace("index.html");
     return;
   }
@@ -12,61 +17,49 @@
 
 const API = location.origin;
 
-const tb = document.getElementById("accountsTable");
-const searchBox = document.getElementById("searchBox");
-let allAccounts = [];
-
-function escapeHtml(s) {
-  return String(s || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function render(list) {
-  tb.innerHTML = "";
-
-  if (!list.length) {
-    tb.innerHTML = `<tr><td colspan="4" style="text-align:center;opacity:.7;">No results</td></tr>`;
-    return;
-  }
-
-  for (const u of list) {
-    tb.innerHTML += `
-      <tr>
-        <td>${escapeHtml(u.email)}</td>
-        <td>${escapeHtml(u.role)}</td>
-        <td>${escapeHtml(u.status)}</td>
-        <td>${escapeHtml(u.lastLogin || "—")}</td>
-      </tr>`;
-  }
-}
-
 async function loadAccounts() {
   const r = await fetch(API + "/api/accounts");
-  const d = await r.json();
-  if (!Array.isArray(d)) return render([]);
-  allAccounts = d;
-  render(allAccounts);
+  const a = await r.json();
+  const tb = document.getElementById("accountsTable");
+  if (!tb) return;
+
+  tb.innerHTML = "";
+  a.forEach(u => {
+    tb.innerHTML += `
+      <tr>
+        <td>${u.email}</td>
+        <td>${u.role}</td>
+        <td>${u.status}</td>
+        <td>${u.lastLogin || "—"}</td>
+      </tr>`;
+  });
 }
 
-searchBox.addEventListener("input", () => {
-  const q = (searchBox.value || "").toLowerCase().trim();
-  render(allAccounts.filter(x => (x.email || "").toLowerCase().includes(q)));
-});
+document.getElementById("searchBox").oninput = async e => {
+  const q = e.target.value.toLowerCase();
+  const r = await fetch(API + "/api/accounts");
+  const a = await r.json();
+  const tb = document.getElementById("accountsTable");
+  tb.innerHTML = "";
 
-document.getElementById("logoutBtn").onclick = () => {
-  localStorage.clear();
-  location.href = "index.html";
+  a.filter(x => (x.email || "").toLowerCase().includes(q))
+   .forEach(u => {
+     tb.innerHTML += `
+      <tr>
+        <td>${u.email}</td>
+        <td>${u.role}</td>
+        <td>${u.status}</td>
+        <td>${u.lastLogin || "—"}</td>
+      </tr>`;
+   });
 };
 
-// Optional guard
-(() => {
-  const role = (localStorage.getItem("role") || "").toLowerCase();
-  if (role !== "admin") location.href = "index.html";
-})();
+document.getElementById("logoutBtn").onclick = (e) => {
+  e.preventDefault();
+  localStorage.removeItem("email");
+  localStorage.removeItem("role");
+  localStorage.removeItem("sessionAt");
+  location.replace("index.html");
+};
 
 loadAccounts();
-
