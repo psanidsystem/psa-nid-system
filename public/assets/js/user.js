@@ -2,10 +2,15 @@
 (() => {
   const email = localStorage.getItem("email");
   const role = localStorage.getItem("role");
+  const sessionAt = Number(localStorage.getItem("sessionAt") || "0");
 
-  // required to view user.html
-  if (!email || !role) {
-    // optional: preserve where they came from
+  // 30 minutes session (adjust if you want)
+  const MAX_AGE_MS = 30 * 60 * 1000;
+
+  if (!email || !role || !sessionAt || Date.now() - sessionAt > MAX_AGE_MS) {
+    localStorage.removeItem("email");
+    localStorage.removeItem("role");
+    localStorage.removeItem("sessionAt");
     location.replace("index.html");
     return;
   }
@@ -65,10 +70,6 @@ function hideMsgs() {
   if (msgErrEl) msgErrEl.style.display = "none";
 }
 
-/**
- * ✅ IMPORTANT FIX:
- * Reset + hide the previous TRN details (used when not found / invalid / new search)
- */
 function resetDetails() {
   record = null;
 
@@ -121,8 +122,6 @@ setActive("home");
 // ===== Search =====
 async function doSearch() {
   hideMsgs();
-
-  // ✅ reset old details at the start of every new search attempt
   resetDetails();
 
   const trn = (trnInputEl?.value || "").replace(/\D/g, "");
@@ -142,7 +141,6 @@ async function doSearch() {
 
     const d = await r.json();
 
-    // ✅ FIX: if not found, keep it cleared + show error
     if (!d.success) {
       resetDetails();
       showErr(d.message || "TRN not found.");
@@ -220,11 +218,9 @@ searchBtnEl && searchBtnEl.addEventListener("click", doSearch);
 clearBtnEl && clearBtnEl.addEventListener("click", doClear);
 saveBtnEl && saveBtnEl.addEventListener("click", doSave);
 
-// Press Enter to search
 trnInputEl && trnInputEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
     doSearch();
   }
 });
-
