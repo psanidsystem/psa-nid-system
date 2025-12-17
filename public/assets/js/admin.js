@@ -1,3 +1,15 @@
+// ===== AUTH GUARD (Admin Page) =====
+(() => {
+  const email = localStorage.getItem("email");
+  const role = localStorage.getItem("role");
+
+  // only admin can view admin.html
+  if (!email || role !== "admin") {
+    location.replace("index.html");
+    return;
+  }
+})();
+
 const API = location.origin;
 
 const tb = document.getElementById("accountsTable");
@@ -57,3 +69,4 @@ document.getElementById("logoutBtn").onclick = () => {
 })();
 
 loadAccounts();
+
