@@ -17,24 +17,6 @@ function hideMsg(el) {
   el.textContent = "";
 }
 
-// ===== Spinner button helper =====
-function setLoading(btn, isLoading, loadingText) {
-  if (!btn) return;
-
-  const textEl = btn.querySelector(".btn-text");
-  const original = btn.dataset.originalText || (textEl ? textEl.textContent : btn.textContent);
-
-  if (!btn.dataset.originalText) btn.dataset.originalText = original;
-
-  btn.disabled = !!isLoading;
-  btn.classList.toggle("loading", !!isLoading);
-
-  const nextText = isLoading ? (loadingText || "Loading...") : btn.dataset.originalText;
-
-  if (textEl) textEl.textContent = nextText;
-  else btn.textContent = nextText;
-}
-
 // Tabs
 loginTab.onclick = () => {
   loginTab.classList.add("active");
@@ -71,7 +53,6 @@ function formatViber(d) {
 
 function normalizeViber() {
   let d = regViber.value.replace(/\D/g, "");
-
   if (d.startsWith("9")) d = "0" + d;
 
   if (d.length > 0 && !d.startsWith("09")) {
@@ -91,25 +72,17 @@ regViber.addEventListener("blur", normalizeViber);
 async function loadProvinces() {
   const sel = document.getElementById("regProvince");
   sel.innerHTML = `<option value="">-- Select Province --</option>`;
-  try {
-    const r = await fetch(API + "/api/provinces");
-    const d = await r.json();
-    (d.provinces || []).forEach(p => sel.innerHTML += `<option value="${p}">${p}</option>`);
-  } catch (e) {
-    console.error("loadProvinces error:", e);
-  }
+  const r = await fetch(API + "/api/provinces");
+  const d = await r.json();
+  (d.provinces || []).forEach(p => sel.innerHTML += `<option value="${p}">${p}</option>`);
 }
 
 async function loadPositions() {
   const sel = document.getElementById("regPosition");
   sel.innerHTML = `<option value="">-- Select Position --</option>`;
-  try {
-    const r = await fetch(API + "/api/positions");
-    const d = await r.json();
-    (d.positions || []).forEach(p => sel.innerHTML += `<option value="${p}">${p}</option>`);
-  } catch (e) {
-    console.error("loadPositions error:", e);
-  }
+  const r = await fetch(API + "/api/positions");
+  const d = await r.json();
+  (d.positions || []).forEach(p => sel.innerHTML += `<option value="${p}">${p}</option>`);
 }
 
 // Admin eligibility
@@ -144,34 +117,35 @@ async function checkAdminEligibility() {
 
   if (!body.firstName || !body.lastName || !body.email) return setAdmin(false);
 
-  try {
-    const r = await fetch(API + "/api/admin-eligible", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const d = await r.json();
-    setAdmin(!!d.eligible);
-  } catch (e) {
-    console.error("admin-eligible error:", e);
-    setAdmin(false);
-  }
+  const r = await fetch(API + "/api/admin-eligible", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const d = await r.json();
+  setAdmin(!!d.eligible);
 }
 
 ["regFirstName", "regMiddleName", "regLastName", "regEmail"].forEach(id => {
   document.getElementById(id)?.addEventListener("input", checkAdminEligibility);
 });
 
-// Login
+// Login + Loading state
 const loginEmail = document.getElementById("loginEmail");
 const loginPassword = document.getElementById("loginPassword");
+
+// ✅ optional (works even if you don't add spinner HTML)
+const loginBtn = loginForm.querySelector("button[type='submit']");
+const loginBtnOrig = loginBtn ? loginBtn.textContent : "";
 
 loginForm.onsubmit = async (e) => {
   e.preventDefault();
   hideMsg(loginMsg);
 
-  const loginBtn = document.getElementById("loginBtn") || loginForm.querySelector('button[type="submit"]');
-  setLoading(loginBtn, true, "Logging in...");
+  if (loginBtn) {
+    loginBtn.disabled = true;
+    loginBtn.textContent = "Logging in...";
+  }
 
   try {
     const r = await fetch(API + "/api/login", {
@@ -181,20 +155,22 @@ loginForm.onsubmit = async (e) => {
     });
 
     const d = await r.json();
-    if (!d.success) {
-      showMsg(loginMsg, d.message || "Login failed.", "error");
-      return;
-    }
+    if (!d.success) return showMsg(loginMsg, d.message, "error");
 
+    // ✅ session keys used by guards
     localStorage.setItem("email", loginEmail.value.trim());
-    localStorage.setItem("role", d.role);
+    localStorage.setItem("role", d.role || "user");
+    localStorage.setItem("sessionAt", Date.now().toString()); // session timestamp
 
     location.href = (d.role === "admin") ? "admin.html" : "user.html";
   } catch (err) {
-    console.error("login error:", err);
-    showMsg(loginMsg, "Network/server error. Please try again.", "error");
+    console.error(err);
+    showMsg(loginMsg, "Server error. Please try again.", "error");
   } finally {
-    setLoading(loginBtn, false);
+    if (loginBtn) {
+      loginBtn.disabled = false;
+      loginBtn.textContent = loginBtnOrig || "Login";
+    }
   }
 };
 
@@ -209,46 +185,36 @@ registerForm.onsubmit = async (e) => {
   e.preventDefault();
   hideMsg(regMsg);
 
-  const regBtn = document.getElementById("registerBtn") || registerForm.querySelector('button[type="submit"]');
-  setLoading(regBtn, true, "Creating...");
+  const viber = regViber.value.replace(/\D/g, "");
+  if (!/^09\d{9}$/.test(viber)) return showMsg(regMsg, "Invalid Viber number.", "error");
 
-  try {
-    const viber = regViber.value.replace(/\D/g, "");
-    if (!/^09\d{9}$/.test(viber)) return showMsg(regMsg, "Invalid Viber number.", "error");
+  if (regPassword.value !== regConfirm.value) return showMsg(regMsg, "Passwords do not match.", "error");
+  if (!regPosition.value) return showMsg(regMsg, "Please select Position.", "error");
+  if (!regProvince.value) return showMsg(regMsg, "Please select Province.", "error");
+  if (!regRole.value) return showMsg(regMsg, "Please select Role.", "error");
 
-    if (regPassword.value !== regConfirm.value) return showMsg(regMsg, "Passwords do not match.", "error");
-    if (!regPosition.value) return showMsg(regMsg, "Please select Position.", "error");
-    if (!regProvince.value) return showMsg(regMsg, "Please select Province.", "error");
-    if (!regRole.value) return showMsg(regMsg, "Please select Role.", "error");
+  const body = {
+    email: regEmail.value.trim(),
+    password: regPassword.value,
+    role: regRole.value,
+    firstName: regFirstName.value.trim(),
+    middleName: regMiddleName.value.trim(),
+    lastName: regLastName.value.trim(),
+    viber,
+    position: regPosition.value,
+    province: regProvince.value,
+  };
 
-    const body = {
-      email: regEmail.value.trim(),
-      password: regPassword.value,
-      role: regRole.value,
-      firstName: regFirstName.value.trim(),
-      middleName: regMiddleName.value.trim(),
-      lastName: regLastName.value.trim(),
-      viber,
-      position: regPosition.value,
-      province: regProvince.value,
-    };
+  const r = await fetch(API + "/api/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 
-    const r = await fetch(API + "/api/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+  const d = await r.json();
+  if (!d.success) return showMsg(regMsg, d.message, "error");
 
-    const d = await r.json();
-    if (!d.success) return showMsg(regMsg, d.message || "Registration failed.", "error");
-
-    showMsg(regMsg, "Account created successfully! You can now login.", "success");
-    registerForm.reset();
-    setAdmin(false);
-  } catch (err) {
-    console.error("register error:", err);
-    showMsg(regMsg, "Network/server error. Please try again.", "error");
-  } finally {
-    setLoading(regBtn, false);
-  }
+  showMsg(regMsg, "Account created successfully! You can now login.", "success");
+  registerForm.reset();
+  setAdmin(false);
 };
