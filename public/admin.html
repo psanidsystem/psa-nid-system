@@ -54,13 +54,17 @@
 <script src="assets/js/admin.js"></script>
 <script>
   // ✅ safe logout for admin page
+<script>
   const logoutBtn = document.getElementById("logoutBtn");
-  logoutBtn && logoutBtn.addEventListener("click", (e) => {
-    e.preventDefault();
+  logoutBtn && logoutBtn.addEventListener("click", () => {
     localStorage.removeItem("email");
     localStorage.removeItem("role");
-    location.replace("index.html");
+    location.href = "index.html";
   });
+</script>
+
+  
 </script>
 </body>
 </html>
+
