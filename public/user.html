@@ -377,6 +377,26 @@
 </head>
 <body>
 
+  <!-- ✅ AUTH GUARD (must be first) -->
+  <script>
+    (function () {
+      const email = localStorage.getItem("email");
+      const role = localStorage.getItem("role");
+
+      // require login
+      if (!email) {
+        location.replace("index.html");
+        return;
+      }
+
+      // require correct role (user)
+      if (role !== "user") {
+        location.replace("index.html");
+        return;
+      }
+    })();
+  </script>
+
   <!-- Topbar -->
   <div class="topbar">
     <div class="topbar-inner">
@@ -412,7 +432,7 @@
           Search <small>TRN Lookup</small>
         </button>
 
-        <!-- ✅ Office button (inside nav, sakto ang UI) -->
+        <!-- ✅ Office button -->
         <button type="button" onclick="location.href='office.html'">
           Office <small>Failed Reg</small>
         </button>
@@ -520,11 +540,13 @@
 
   <script src="assets/js/user.js?v=5"></script>
   <script>
-    // ✅ logout clears localStorage (para dili mo-direct sa weird page)
+    // ✅ Proper logout: clear + replace (para di maka back)
     const logoutLink = document.getElementById("logoutLink");
-    logoutLink && logoutLink.addEventListener("click", () => {
+    logoutLink && logoutLink.addEventListener("click", (e) => {
+      e.preventDefault();
       localStorage.removeItem("email");
       localStorage.removeItem("role");
+      location.replace("index.html");
     });
   </script>
 </body>
