@@ -2,13 +2,19 @@
 (() => {
   const email = localStorage.getItem("email");
   const role = localStorage.getItem("role");
+  const sessionAt = Number(localStorage.getItem("sessionAt") || "0");
 
-  // for now: logged-in users only (same style as user/admin guard)
-  if (!email || !role) {
+  const MAX_AGE_MS = 30 * 60 * 1000;
+
+  if (!email || !role || !sessionAt || Date.now() - sessionAt > MAX_AGE_MS) {
+    localStorage.removeItem("email");
+    localStorage.removeItem("role");
+    localStorage.removeItem("sessionAt");
     location.replace("index.html");
     return;
   }
 })();
+
 
 const API = location.origin;
 
