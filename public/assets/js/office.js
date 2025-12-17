@@ -1,3 +1,15 @@
+// ===== AUTH GUARD (Office Page) =====
+(() => {
+  const email = localStorage.getItem("email");
+  const role = localStorage.getItem("role");
+
+  // for now: logged-in users only (same style as user/admin guard)
+  if (!email || !role) {
+    location.replace("index.html");
+    return;
+  }
+})();
+
 const API = location.origin;
 
 const userEmailEl = document.getElementById("userEmail");
