@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PSA • User Portal (Search)</title>
+
   <style>
     :root{
       --primary:#0033a0;
@@ -157,7 +158,7 @@
       margin-top: 12px;
       display:flex;
       gap: 10px;
-      align-items:center;
+      align-items:flex-end;
       flex-wrap: wrap;
     }
 
@@ -200,6 +201,7 @@
       box-shadow: 0 6px 14px rgba(0,51,160,0.22);
       display:inline-flex;
       align-items:center;
+      justify-content:center;
       gap:10px;
       height: 44px;
     }
@@ -251,8 +253,8 @@
       font-weight: 700;
     }
 
-    /* Detail summary */
-    .detail-wrap{
+    /* Detail */
+    #detailWrap{
       margin-top: 14px;
       display:none;
     }
@@ -280,7 +282,6 @@
       word-break: break-word;
     }
 
-    /* Update fields */
     .update-card{
       margin-top: 14px;
       padding: 14px;
@@ -311,30 +312,16 @@
       line-height: 1.45;
     }
 
-    /* Responsive */
     @media (max-width: 900px){
       .detail-grid{ grid-template-columns: 1fr; }
       .form-grid{ grid-template-columns: 1fr; }
-      .btn{ width: 100%; justify-content: center; }
+      .btn{ width: 100%; }
       .search-row{ flex-direction: column; align-items: stretch; }
     }
   </style>
 </head>
 
 <body>
-
-  <!-- ✅ AUTH GUARD (must be first) -->
-  <script>
-    (function () {
-      const email = localStorage.getItem("email");
-      const role = localStorage.getItem("role");
-
-      if (!email) { location.replace("index.html"); return; }
-      if (role !== "user") { location.replace("index.html"); return; }
-    })();
-  </script>
-
-  <!-- Topbar -->
   <div class="topbar">
     <div class="topbar-inner">
       <div class="brand">
@@ -351,7 +338,7 @@
       <div class="right-tools">
         <div class="user-pill" title="Logged in user">
           <span class="dot"></span>
-          <span id="userEmail">user@example.gov.ph</span>
+          <span id="userEmail">—</span>
         </div>
         <a class="logout-btn" href="index.html" id="logoutLink">Logout</a>
       </div>
@@ -364,7 +351,7 @@
         <div>
           <h2 id="trnTitle">TRN Search</h2>
           <p>Enter the <b>29-digit TRN</b> to view details and update recapture fields.</p>
-          <div class="hint">Tip: Numbers only. The input will automatically remove non-digits.</div>
+          <div class="hint">Numbers only. Characters/symbols will be blocked/removed automatically.</div>
         </div>
       </div>
 
@@ -376,13 +363,14 @@
             class="search-input"
             type="text"
             inputmode="numeric"
-            placeholder="29-digit TRN"
+            pattern="[0-9]{29}"
             maxlength="29"
+            placeholder="29-digit TRN"
             autocomplete="off"
           />
         </div>
 
-        <button class="btn" id="searchBtn" type="button">
+        <button class="btn" id="searchBtn" type="button" disabled>
           <span class="spinner" id="searchSpinner"></span>
           <span>Search</span>
         </button>
@@ -390,12 +378,10 @@
         <button class="btn secondary" id="clearBtn" type="button">Clear</button>
       </div>
 
-      <!-- Alerts (aria-live for accessibility) -->
       <div id="msgOk" class="alert ok" role="status" aria-live="polite"></div>
       <div id="msgErr" class="alert err" role="alert" aria-live="assertive"></div>
 
-      <!-- Found detail -->
-      <div id="detailWrap" class="detail-wrap">
+      <div id="detailWrap">
         <div class="detail-grid">
           <div class="detail-item">
             <div class="label">Fullname</div>
@@ -435,6 +421,7 @@
                 id="newTrnInput"
                 type="text"
                 inputmode="numeric"
+                pattern="[0-9]{29}"
                 maxlength="29"
                 placeholder="Enter (29 digits)"
                 autocomplete="off"
@@ -448,7 +435,7 @@
           </div>
 
           <div class="actions">
-            <button class="btn" id="saveBtn" type="button">
+            <button class="btn" id="saveBtn" type="button" disabled>
               <span class="spinner" id="saveSpinner"></span>
               <span id="saveText">Save</span>
             </button>
@@ -458,44 +445,6 @@
     </section>
   </div>
 
-  <script src="assets/js/user.js?v=5"></script>
-
-  <script>
-    // Show logged in user email
-    const email = localStorage.getItem("email") || "—";
-    const userEmailEl = document.getElementById("userEmail");
-    if (userEmailEl) userEmailEl.textContent = email;
-
-    // ✅ Proper logout: clear + replace (para di maka back)
-    const logoutLink = document.getElementById("logoutLink");
-    logoutLink && logoutLink.addEventListener("click", (e) => {
-      e.preventDefault();
-      localStorage.removeItem("email");
-      localStorage.removeItem("role");
-      location.replace("index.html");
-    });
-
-    // ✅ Digits-only helpers (client-side UX improvement)
-    function digitsOnly(el){
-      if (!el) return;
-      el.addEventListener("input", () => {
-        el.value = (el.value || "").replace(/\D/g, "").slice(0, el.maxLength || 999);
-      });
-      el.addEventListener("paste", () => {
-        setTimeout(() => {
-          el.value = (el.value || "").replace(/\D/g, "").slice(0, el.maxLength || 999);
-        }, 0);
-      });
-    }
-    digitsOnly(document.getElementById("trnInput"));
-    digitsOnly(document.getElementById("newTrnInput"));
-
-    // Optional: Enter key = search
-    const trnInput = document.getElementById("trnInput");
-    const searchBtn = document.getElementById("searchBtn");
-    trnInput && searchBtn && trnInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") searchBtn.click();
-    });
-  </script>
+  <script src="assets/js/user.js?v=6"></script>
 </body>
 </html>
