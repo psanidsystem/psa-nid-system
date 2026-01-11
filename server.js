@@ -189,7 +189,6 @@ async function isAuthorizedAdmin(firstName, middleName, lastName, email) {
 // ✅ AUTH ROUTES
 // =============================================================
 
-// REGISTER
 app.post("/api/register", async (req, res) => {
   const {
     email, password, role,
@@ -223,7 +222,6 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// LOGIN
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.json({ success: false, message: "Missing email or password" });
@@ -255,36 +253,10 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// Admin eligible
-app.post("/api/admin-eligible", async (req, res) => {
-  try {
-    const { firstName, middleName, lastName, email } = req.body || {};
-    if (!firstName || !lastName || !email) return res.json({ success: true, eligible: false });
-
-    const eligible = await isAuthorizedAdmin(firstName, middleName, lastName, email);
-    return res.json({ success: true, eligible });
-  } catch (err) {
-    console.error("Error in POST /api/admin-eligible:", err.message || err);
-    return res.status(500).json({ success: false, eligible: false });
-  }
-});
-
-// Admin list (safe)
-app.get("/api/accounts", async (req, res) => {
-  try {
-    const accounts = await loadAccounts();
-    const safe = accounts.map(({ password, ...rest }) => rest);
-    return res.json(safe);
-  } catch (err) {
-    console.error("Error in GET /api/accounts:", err.message || err);
-    return res.status(500).json({ success: false, message: "Error loading accounts." });
-  }
-});
-
 // =============================================================
 // ✅ DROPDOWN OPTIONS
 // Means of Notification: Dropdown!A2:A
-// Recapture Status:      Dropdown!E2:E ✅ FIXED
+// Recapture Status:      Dropdown!E2:E
 // =============================================================
 app.get("/api/means-notification", async (req, res) => {
   try {
@@ -310,7 +282,7 @@ app.get("/api/recapture-status-options", async (req, res) => {
     const sheets = await getClient();
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetDropdown}!E2:E`, // ✅ COL E
+      range: `${sheetDropdown}!E2:E`, // ✅ Col E
     });
 
     const items = (result.data.values || [])
@@ -327,6 +299,7 @@ app.get("/api/recapture-status-options", async (req, res) => {
 // =============================================================
 // ✅ OFFICE LIST
 // Province filter uses COLUMN G (index 6)
+// Adds UpdatedAt column Q indicator (index 16)
 // =============================================================
 app.get("/api/failed-registrations", async (req, res) => {
   try {
@@ -335,7 +308,7 @@ app.get("/api/failed-registrations", async (req, res) => {
 
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetFailed}!A2:P`,
+      range: `${sheetFailed}!A2:Q`, // ✅ include Q
     });
 
     const rows = result.data.values || [];
@@ -353,7 +326,9 @@ app.get("/api/failed-registrations", async (req, res) => {
 
         if (provinceQ && province.toLowerCase() !== provinceQ) return null;
 
-        return { rowNumber, trn, fullname, contactNo, province };
+        const updatedAt = String(r[16] || "").trim(); // Q ✅
+
+        return { rowNumber, trn, fullname, contactNo, province, updatedAt };
       })
       .filter(Boolean);
 
@@ -364,6 +339,7 @@ app.get("/api/failed-registrations", async (req, res) => {
   }
 });
 
+// ✅ GET SINGLE ROW (autofill H–P + UpdatedAt Q)
 app.get("/api/failed-registration-row", async (req, res) => {
   try {
     const rn = Number(req.query.rowNumber);
@@ -373,27 +349,30 @@ app.get("/api/failed-registration-row", async (req, res) => {
 
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetFailed}!A${rn}:P${rn}`,
+      range: `${sheetFailed}!A${rn}:Q${rn}`, // ✅ include Q
     });
 
     const row = ((result.data.values || [])[0] || []);
 
     const data = {
       rowNumber: rn,
-      trn: String(row[1] || "").trim(),
-      fullname: String(row[2] || "").trim(),
-      contactNo: String(row[3] || "").trim(),
-      province: String(row[6] || "").trim(),
+      trn: String(row[1] || "").trim(),       // B
+      fullname: String(row[2] || "").trim(),  // C
+      contactNo: String(row[3] || "").trim(), // D
+      province: String(row[6] || "").trim(),  // G
 
-      presentAddress: String(row[7] || "").trim(),
-      provincePresent: String(row[8] || "").trim(),
-      dateContacted: String(row[9] || "").trim(),
-      meansOfNotification: String(row[10] || "").trim(),
-      recaptureStatus: String(row[11] || "").trim(),
-      recaptureSchedule: String(row[12] || "").trim(),
-      provinceRegistration: String(row[13] || "").trim(),
-      cityMunicipality: String(row[14] || "").trim(),
-      registrationCenter: String(row[15] || "").trim(),
+      // H-P fields
+      presentAddress: String(row[7] || "").trim(),        // H
+      provincePresent: String(row[8] || "").trim(),       // I
+      dateContacted: String(row[9] || "").trim(),         // J
+      meansOfNotification: String(row[10] || "").trim(),  // K
+      recaptureStatus: String(row[11] || "").trim(),      // L
+      recaptureSchedule: String(row[12] || "").trim(),    // M
+      provinceRegistration: String(row[13] || "").trim(), // N
+      cityMunicipality: String(row[14] || "").trim(),     // O
+      registrationCenter: String(row[15] || "").trim(),   // P
+
+      updatedAt: String(row[16] || "").trim(),            // Q ✅
     };
 
     return res.json({ success: true, data });
@@ -403,6 +382,7 @@ app.get("/api/failed-registration-row", async (req, res) => {
   }
 });
 
+// ✅ UPDATE H–Q (Q=UpdatedAt timestamp)
 app.post("/api/failed-registration-update", async (req, res) => {
   try {
     const {
@@ -422,27 +402,29 @@ app.post("/api/failed-registration-update", async (req, res) => {
     if (!rn || rn < 2) return res.json({ success: false, message: "Invalid rowNumber." });
 
     const sheets = await getClient();
+    const now = new Date().toISOString();
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${sheetFailed}!H${rn}:P${rn}`,
+      range: `${sheetFailed}!H${rn}:Q${rn}`,
       valueInputOption: "RAW",
       requestBody: {
         values: [[
-          String(presentAddress || "").trim(),
-          String(provincePresent || "").trim(),
-          String(dateContacted || "").trim(),
-          String(meansOfNotification || "").trim(),
-          String(recaptureStatus || "").trim(),
-          String(recaptureSchedule || "").trim(),
-          String(provinceRegistration || "").trim(),
-          String(cityMunicipality || "").trim(),
-          String(registrationCenter || "").trim(),
+          String(presentAddress || "").trim(),        // H
+          String(provincePresent || "").trim(),       // I
+          String(dateContacted || "").trim(),         // J
+          String(meansOfNotification || "").trim(),   // K
+          String(recaptureStatus || "").trim(),       // L
+          String(recaptureSchedule || "").trim(),     // M
+          String(provinceRegistration || "").trim(),  // N
+          String(cityMunicipality || "").trim(),      // O
+          String(registrationCenter || "").trim(),    // P
+          now,                                        // Q ✅ UpdatedAt
         ]],
       },
     });
 
-    return res.json({ success: true });
+    return res.json({ success: true, updatedAt: now });
   } catch (err) {
     console.error("Error in POST /api/failed-registration-update:", err.message || err);
     return res.status(500).json({ success: false, message: "Server error while updating record." });
