@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PSA • Office-based</title>
+  <title>PSA • Office Portal</title>
+
   <style>
     :root{
       --primary:#0033a0; --primary2:#0056d6;
@@ -11,8 +12,6 @@
       --muted:#6b7280; --border:#e5e7eb;
       --shadow: 0 10px 25px rgba(0,0,0,0.08);
       --radius: 14px;
-      --okbg:#eaf7ef; --okbd:#bfe7cb; --ok:#0f5132;
-      --errbg:#fdecec; --errbd:#f2b8b8; --err:#842029;
     }
     *{ box-sizing:border-box; }
     body{ margin:0; font-family: Arial, sans-serif; background: var(--bg); color: var(--text); }
@@ -21,158 +20,71 @@
       position: sticky; top:0; z-index: 10;
       background: linear-gradient(90deg, var(--primary), var(--primary2));
       color:#fff; padding: 12px 18px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.18);
     }
     .topbar-inner{
       max-width: 1400px; margin: 0 auto;
-      display:flex; align-items:center; justify-content: space-between; gap: 14px;
+      display:flex; align-items:center; justify-content: space-between;
     }
-    .brand-text h1{ margin:0; font-size: 16px; }
-    .brand-text p{ margin:2px 0 0; font-size: 12px; opacity:.9; }
 
     .user-pill{
       display:flex; align-items:center; gap:10px;
       background: rgba(255,255,255,0.14);
-      border: 1px solid rgba(255,255,255,0.22);
-      padding: 8px 10px; border-radius: 999px; font-size: 12px;
-      white-space: nowrap;
+      padding: 8px 12px; border-radius: 999px; font-size: 12px;
     }
     .user-pill .dot{
       height:8px; width:8px; border-radius:50%; background:#22c55e;
-      box-shadow: 0 0 0 3px rgba(34,197,94,0.22);
     }
 
-    .layout{
-      max-width: 1400px; margin: 18px auto; padding: 0 14px;
-      display: grid; grid-template-columns: 260px 1fr; gap: 16px;
+    .container{
+      max-width: 1400px;
+      margin: 20px auto;
+      padding: 0 14px;
     }
-    .sidebar{
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); box-shadow: var(--shadow);
-      padding: 14px;
-      height: calc(100vh - 110px);
-      position: sticky; top: 78px; overflow:auto;
-    }
-    .side-title{ font-weight: 800; color: var(--primary); margin: 4px 0 12px; font-size: 14px; }
-    .nav{ display:flex; flex-direction: column; gap: 8px; }
-    .nav button{
-      width:100%; text-align:left;
-      border: 1px solid var(--border);
-      background:#f8fbff;
-      padding: 10px 12px;
-      border-radius: 12px;
-      cursor:pointer; font-weight: 700; color:#0f172a;
-      display:flex; align-items:center; justify-content: space-between;
-    }
-    .nav button:hover{ background:#eef5ff; border-color:#cfe0ff; }
 
-    .logout{
-      margin-top: 12px;
-      border-top: 1px dashed var(--border);
-      padding-top: 12px;
-    }
-    .logout a{
-      display:block; text-decoration:none; text-align:center;
-      background:#fff; border: 1px solid #f1b4b4; color:#b91c1c;
-      font-weight: 800; padding: 10px 12px; border-radius: 12px;
-    }
-    .logout a:hover{ background:#fff5f5; }
-
-    .main{ display:flex; flex-direction: column; gap: 16px; min-height: calc(100vh - 110px); }
     .card{
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); box-shadow: var(--shadow);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
       padding: 16px;
     }
-    .card h2{ margin: 0 0 6px; color: var(--primary); font-size: 18px; }
-    .card p{ margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 
     .controls{
-      display:flex; gap: 10px; flex-wrap: wrap; align-items:center; margin-top: 10px;
+      display:flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;
     }
+
     .input{
+      flex:1; min-width:260px;
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 10px 12px;
-      font-size: 14px;
-      outline:none;
-      background:#fff;
-      flex: 1;
-      min-width: 260px;
     }
+
     .btn{
-      border: none; border-radius: 12px;
+      border:none; border-radius: 12px;
       padding: 10px 14px;
       background: var(--primary);
-      color: white; font-weight: 800;
-      cursor: pointer;
-      box-shadow: 0 6px 14px rgba(0,51,160,0.22);
-      display:inline-flex; align-items:center; gap:10px;
+      color:#fff; font-weight: 800;
+      cursor:pointer;
     }
-    .btn.secondary{ background:#e9f0ff; color: var(--primary); border: 1px solid #cfe0ff; box-shadow:none; }
-    .btn:disabled{ opacity:.65; cursor:not-allowed; box-shadow:none; }
 
-    .spinner{
-      width:16px; height:16px; border-radius:50%;
-      border:2px solid rgba(255,255,255,0.55);
-      border-top-color:#fff;
-      animation: spin 0.8s linear infinite;
-      display:none;
+    .table-wrap{
+      overflow:auto; margin-top: 14px;
+      border-radius: 12px; border:1px solid var(--border);
     }
-    .btn.loading .spinner{ display:inline-block; }
-    @keyframes spin{ to { transform: rotate(360deg); } }
 
-    .alert{
-      margin-top: 12px; padding: 10px 12px; border-radius: 12px;
-      border: 1px solid var(--border); font-size: 13px; display:none; font-weight: 700;
-    }
-    .alert.ok{ display:block; background: var(--okbg); border-color: var(--okbd); color: var(--ok); }
-    .alert.err{ display:block; background: var(--errbg); border-color: var(--errbd); color: var(--err); }
-
-    .table-wrap{ overflow:auto; margin-top: 12px; border-radius: 12px; border: 1px solid var(--border); }
-    table{ width:100%; border-collapse: collapse; min-width: 1000px; background:#fff; }
-    th, td{ padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
-    th{ background: #f3f7ff; color:#0f172a; text-align:left; position: sticky; top: 0; z-index: 1; }
-
-    @media (max-width: 950px){
-      .layout{ grid-template-columns: 1fr; }
-      .sidebar{ height:auto; position: relative; top:auto; }
-      .input{ min-width: 100%; }
-    }
+    table{ width:100%; border-collapse: collapse; background:#fff; }
+    th, td{ padding: 10px 12px; border-bottom:1px solid var(--border); font-size: 13px; }
+    th{ background:#f3f7ff; text-align:left; }
   </style>
-
-  <!-- ✅ AUTH GUARD (Office Page) -->
-  <script>
-    (function () {
-      const email = localStorage.getItem("email");
-      const role = localStorage.getItem("role");
-      const sessionAt = Number(localStorage.getItem("sessionAt") || "0");
-
-      // same as user/admin (adjust if you want)
-      const MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
-
-      // require login + session
-      if (!email || !role || !sessionAt || (Date.now() - sessionAt) > MAX_AGE_MS) {
-        localStorage.removeItem("email");
-        localStorage.removeItem("role");
-        localStorage.removeItem("sessionAt");
-        location.replace("index.html");
-        return;
-      }
-
-      // ✅ for now: allow only logged-in users (admin can also access if you want)
-      // If you want ONLY user role, uncomment below:
-      // if (role !== "user") { location.replace("index.html"); return; }
-    })();
-  </script>
 </head>
 
 <body>
   <div class="topbar">
     <div class="topbar-inner">
-      <div class="brand-text">
-        <h1>PSA • National ID System</h1>
-        <p>Office-based (Auto Province Filter)</p>
+      <div>
+        <strong>PSA • National ID System</strong><br>
+        <small>Office Portal — Province Based</small>
       </div>
 
       <div class="user-pill">
@@ -182,74 +94,39 @@
     </div>
   </div>
 
-  <div class="layout">
-    <aside class="sidebar">
-      <div class="side-title">Menu</div>
+  <div class="container">
+    <div class="card">
+      <h2>Failed Registration List</h2>
+      <p id="subText">
+        Showing failed registrations for your assigned province only
+      </p>
 
-      <nav class="nav">
-        <button type="button" onclick="location.href='user.html'">
-          ← Back <small>User Portal</small>
-        </button>
-      </nav>
-
-      <div class="logout">
-        <a href="index.html" id="logoutLink">← Logout</a>
+      <div class="controls">
+        <input id="qInput" class="input" type="text"
+          placeholder="Search TRN / Fullname / Contact / Email / Address" />
+        <button id="refreshBtn" class="btn">Refresh</button>
       </div>
-    </aside>
 
-    <main class="main">
-      <section class="card">
-        <h2>Failed Registration List</h2>
-        <p id="subText">Loading...</p>
-
-        <div class="controls">
-          <input id="qInput" class="input" type="text" placeholder="Search TRN / fullname / contact / email / address..." />
-          <button id="refreshBtn" class="btn secondary" type="button">
-            <span class="spinner" id="refreshSpinner"></span>
-            <span>Refresh</span>
-          </button>
-        </div>
-
-        <div id="msgOk" class="alert ok"></div>
-        <div id="msgErr" class="alert err"></div>
-
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>TRN</th>
-                <th>Fullname</th>
-                <th>Contact No.</th>
-                <th>Email Address</th>
-                <th>Permanent Address</th>
-                <th>Province</th>
-              </tr>
-            </thead>
-            <tbody id="tbody">
-              <tr><td colspan="6">Loading...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>TRN</th>
+              <th>Fullname</th>
+              <th>Contact No.</th>
+              <th>Email Address</th>
+              <th>Permanent Address</th>
+              <th>Province</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="6">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
-  <script src="assets/js/office.js?v=2" defer></script>
-
-  <script>
-    // ✅ Show logged user
-    const emailEl = document.getElementById("userEmail");
-    if (emailEl) emailEl.textContent = localStorage.getItem("email") || "";
-
-    // ✅ Proper logout: clear ALL session keys + replace (para di maka back)
-    const logoutLink = document.getElementById("logoutLink");
-    logoutLink && logoutLink.addEventListener("click", (e) => {
-      e.preventDefault();
-      localStorage.removeItem("email");
-      localStorage.removeItem("role");
-      localStorage.removeItem("sessionAt");
-      location.replace("index.html");
-    });
-  </script>
+  <script src="assets/js/office.js?v=3" defer></script>
 </body>
 </html>
