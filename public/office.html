@@ -138,7 +138,7 @@
       gap:10px;
     }
 
-    .split{ display:flex; gap:16px; margin-top:16px; align-items:flex-start; }
+    .split{ display:flex; gap:14px; margin-top:14px; align-items:flex-start; }
 
     .panel{
       width: 380px;
@@ -165,7 +165,7 @@
       color:#0f172a;
       margin-bottom:10px;
     }
-    .grid input, .grid textarea{
+    .grid input, .grid textarea, .grid select{
       width:100%;
       margin-top:6px;
       border:1px solid var(--border);
@@ -177,6 +177,7 @@
     }
     .grid textarea{ resize: vertical; }
 
+    /* ✅ tighter table (fits 3 cols nicely) */
     .table-wrap{
       overflow:auto;
       border-radius: 14px;
@@ -187,13 +188,15 @@
     table{
       width:100%;
       border-collapse: collapse;
-      min-width: 1100px;
+      min-width: 720px;
       background:#fff;
+      table-layout: fixed;
     }
     th, td{
-      padding: 12px 14px;
+      padding: 10px 12px;
       border-bottom: 1px solid var(--border);
       font-size: 13px;
+      vertical-align: top;
     }
     th{
       background: #f3f7ff;
@@ -207,14 +210,23 @@
     .muted{ color: var(--muted); font-weight: 800; }
     tr.clickable:hover{ background:#eef5ff; }
 
+    /* ✅ column widths */
+    th.col-trn, td.col-trn { width: 240px; }
+    th.col-name, td.col-name { width: 340px; }
+    th.col-contact, td.col-contact { width: 140px; }
+
+    td{
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
+    }
+
     @media (max-width: 1150px){
       .split{ flex-direction: column; }
       .panel{ width: 100%; }
-      table{ min-width: 900px; }
+      table{ min-width: 700px; }
     }
   </style>
 
-  <!-- AUTH GUARD (Office) -->
   <script>
     (function () {
       const email = localStorage.getItem("email");
@@ -227,7 +239,6 @@
         location.replace("index.html");
         return;
       }
-
       if (role !== "office") {
         location.replace("user.html");
         return;
@@ -270,7 +281,7 @@
       </div>
 
       <div class="controls">
-        <input id="qInput" class="input" type="text" placeholder="Search TRN / Fullname / Contact / Email / Address / Province" />
+        <input id="qInput" class="input" type="text" placeholder="Search TRN / Fullname / Contact / Province" />
         <button id="refreshBtn" class="btn" type="button">
           Refresh
           <span id="refreshSpinner" style="display:none;">...</span>
@@ -278,7 +289,8 @@
       </div>
 
       <div class="split">
-        <!-- UPDATE PANEL -->
+
+        <!-- LEFT UPDATE PANEL -->
         <div class="panel">
           <h3 class="panel-title">Update Record</h3>
 
@@ -297,20 +309,20 @@
               <input id="provincePresent" type="text" />
             </label>
 
-            <label>Date Contacted (MM/DD/YYYY)
-              <input id="dateContacted" type="text" placeholder="MM/DD/YYYY" />
+            <label>Date Contacted
+              <input id="dateContacted" type="date" />
             </label>
 
             <label>Means of Notification
-              <input id="meansOfNotification" type="text" />
+              <select id="meansOfNotification"></select>
             </label>
 
             <label>Recapture Status
-              <input id="recaptureStatus" type="text" />
+              <select id="recaptureStatus"></select>
             </label>
 
-            <label>Recapture Schedule (MM/DD/YYYY)
-              <input id="recaptureSchedule" type="text" placeholder="MM/DD/YYYY" />
+            <label>Recapture Schedule
+              <input id="recaptureSchedule" type="date" />
             </label>
 
             <label>Province (Registration)
@@ -333,21 +345,18 @@
           <p id="updateMsg" class="muted" style="margin:10px 0 0;">Select a row to update.</p>
         </div>
 
-        <!-- TABLE -->
+        <!-- RIGHT TABLE (3 columns) -->
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>TRN</th>
-                <th>Fullname</th>
-                <th>Contact No.</th>
-                <th>Email Address</th>
-                <th>Permanent Address</th>
-                <th>Province</th>
+                <th class="col-trn">TRN</th>
+                <th class="col-name">Fullname</th>
+                <th class="col-contact">Contact No.</th>
               </tr>
             </thead>
             <tbody id="tbody">
-              <tr><td colspan="6" class="muted">Loading...</td></tr>
+              <tr><td colspan="3" class="muted">Loading...</td></tr>
             </tbody>
           </table>
         </div>
@@ -356,6 +365,6 @@
     </section>
   </div>
 
-  <script src="assets/js/office.js?v=300" defer></script>
+  <script src="assets/js/office.js?v=400" defer></script>
 </body>
 </html>
