@@ -62,19 +62,6 @@ function uniq(arr) {
 
 // =============================================================
 // ✅ ACCOUNTS HELPERS (A–M)
-// A Email
-// B Password
-// C Role
-// D Status
-// E CreatedAt
-// F UpdatedAt
-// G LastLogin
-// H FirstName
-// I MiddleName
-// J LastName
-// K Viber
-// L Province
-// M Position
 // =============================================================
 async function ensureAccountsHeader() {
   const sheets = await getClient();
@@ -236,7 +223,7 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// LOGIN ✅ (Fix: route exists again)
+// LOGIN
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.json({ success: false, message: "Missing email or password" });
@@ -282,7 +269,7 @@ app.post("/api/admin-eligible", async (req, res) => {
   }
 });
 
-// Admin dashboard list (safe no password)
+// Admin list (safe)
 app.get("/api/accounts", async (req, res) => {
   try {
     const accounts = await loadAccounts();
@@ -297,7 +284,7 @@ app.get("/api/accounts", async (req, res) => {
 // =============================================================
 // ✅ DROPDOWN OPTIONS
 // Means of Notification: Dropdown!A2:A
-// Recapture Status:      Dropdown!C2:C
+// Recapture Status:      Dropdown!E2:E ✅ FIXED
 // =============================================================
 app.get("/api/means-notification", async (req, res) => {
   try {
@@ -323,7 +310,7 @@ app.get("/api/recapture-status-options", async (req, res) => {
     const sheets = await getClient();
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetDropdown}!C2:C`,
+      range: `${sheetDropdown}!E2:E`, // ✅ COL E
     });
 
     const items = (result.data.values || [])
@@ -340,14 +327,6 @@ app.get("/api/recapture-status-options", async (req, res) => {
 // =============================================================
 // ✅ OFFICE LIST
 // Province filter uses COLUMN G (index 6)
-// A No.
-// B TRN
-// C Fullname
-// D Contact No.
-// E Email Address
-// F Permanent Address
-// G Province ✅ basis
-// H-P update fields
 // =============================================================
 app.get("/api/failed-registrations", async (req, res) => {
   try {
@@ -370,7 +349,7 @@ app.get("/api/failed-registrations", async (req, res) => {
         if (!trn) return null;
 
         const contactNo = String(r[3] || "").trim(); // D
-        const province = String(r[6] || "").trim();  // ✅ G
+        const province = String(r[6] || "").trim();  // G
 
         if (provinceQ && province.toLowerCase() !== provinceQ) return null;
 
@@ -385,7 +364,6 @@ app.get("/api/failed-registrations", async (req, res) => {
   }
 });
 
-// ✅ GET SINGLE ROW (autofill H–P)
 app.get("/api/failed-registration-row", async (req, res) => {
   try {
     const rn = Number(req.query.rowNumber);
@@ -402,20 +380,20 @@ app.get("/api/failed-registration-row", async (req, res) => {
 
     const data = {
       rowNumber: rn,
-      trn: String(row[1] || "").trim(),       // B
-      fullname: String(row[2] || "").trim(),  // C
-      contactNo: String(row[3] || "").trim(), // D
-      province: String(row[6] || "").trim(),  // G
+      trn: String(row[1] || "").trim(),
+      fullname: String(row[2] || "").trim(),
+      contactNo: String(row[3] || "").trim(),
+      province: String(row[6] || "").trim(),
 
-      presentAddress: String(row[7] || "").trim(),        // H
-      provincePresent: String(row[8] || "").trim(),       // I
-      dateContacted: String(row[9] || "").trim(),         // J
-      meansOfNotification: String(row[10] || "").trim(),  // K
-      recaptureStatus: String(row[11] || "").trim(),      // L
-      recaptureSchedule: String(row[12] || "").trim(),    // M
-      provinceRegistration: String(row[13] || "").trim(), // N
-      cityMunicipality: String(row[14] || "").trim(),     // O
-      registrationCenter: String(row[15] || "").trim(),   // P
+      presentAddress: String(row[7] || "").trim(),
+      provincePresent: String(row[8] || "").trim(),
+      dateContacted: String(row[9] || "").trim(),
+      meansOfNotification: String(row[10] || "").trim(),
+      recaptureStatus: String(row[11] || "").trim(),
+      recaptureSchedule: String(row[12] || "").trim(),
+      provinceRegistration: String(row[13] || "").trim(),
+      cityMunicipality: String(row[14] || "").trim(),
+      registrationCenter: String(row[15] || "").trim(),
     };
 
     return res.json({ success: true, data });
@@ -425,7 +403,6 @@ app.get("/api/failed-registration-row", async (req, res) => {
   }
 });
 
-// ✅ UPDATE H–P
 app.post("/api/failed-registration-update", async (req, res) => {
   try {
     const {
@@ -472,7 +449,7 @@ app.post("/api/failed-registration-update", async (req, res) => {
   }
 });
 
-// ✅ 404 for API routes only
+// ✅ 404
 app.use((req, res) => {
   res.status(404).json({ success: false, message: `Route not found: ${req.method} ${req.originalUrl}` });
 });
