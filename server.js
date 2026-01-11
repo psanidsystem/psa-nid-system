@@ -362,14 +362,14 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// LOGIN
+// ✅ LOGIN (FIXED: returns role + province + position)
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.json({ success: false, message: "Missing email or password" });
 
   try {
     const accounts = await loadAccounts();
-    const user = accounts.find((a) => a.email.toLowerCase() === email.toLowerCase());
+    const user = accounts.find((a) => a.email.toLowerCase() === String(email).toLowerCase());
 
     if (!user) return res.json({ success: false, message: "Invalid email or password" });
     if (user.password !== password) return res.json({ success: false, message: "Invalid email or password" });
@@ -379,10 +379,19 @@ app.post("/api/login", async (req, res) => {
     }
 
     await updateLastLogin(email);
-    res.json({ success: true, role: user.role });
+
+    // ✅ MUST return these so office.html won't auto logout
+    return res.json({
+      success: true,
+      role: user.role || "user",
+      province: user.province || "",
+      position: user.position || "",
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+    });
   } catch (err) {
     console.error("Error in POST /api/login:", err.message || err);
-    res.status(500).json({ success: false, message: "Server error." });
+    return res.status(500).json({ success: false, message: "Server error." });
   }
 });
 
@@ -397,6 +406,46 @@ app.post("/api/admin-eligible", async (req, res) => {
   } catch (err) {
     console.error("Error in POST /api/admin-eligible:", err.message || err);
     return res.status(500).json({ success: false, eligible: false });
+  }
+});
+
+// ✅ FAILED REGISTRATION LIST (for office.html)
+// Optional: /api/failed-registrations?province=Cebu
+app.get("/api/failed-registrations", async (req, res) => {
+  try {
+    const provinceQ = String(req.query.province || "").trim().toLowerCase();
+
+    const sheets = await getClient();
+
+    // Read wide range, adjust if needed
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetFailed}!A2:S`,
+    });
+
+    const rows = result.data.values || [];
+
+    // Based on your trn-search mapping:
+    // row[1]=TRN, row[2]=Fullname, row[5]=Permanent Address
+    // Column G province => row[6]
+    // Contact + Email not shown earlier; common guess: row[3]=Contact, row[4]=Email
+    const records = rows.map((row) => ({
+      trn: row[1] || "",
+      fullname: row[2] || "",
+      contactNo: row[3] || "",
+      emailAddress: row[4] || "",
+      permanentAddress: row[5] || "",
+      province: row[6] || "",
+    }));
+
+    const filtered = provinceQ
+      ? records.filter((r) => String(r.province || "").trim().toLowerCase() === provinceQ)
+      : records;
+
+    return res.json({ success: true, records: filtered });
+  } catch (err) {
+    console.error("Error in GET /api/failed-registrations:", err.message || err);
+    return res.status(500).json({ success: false, message: "Error loading failed registrations." });
   }
 });
 
