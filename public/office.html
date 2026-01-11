@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>PSA • Office Portal</title>
 
   <style>
@@ -12,12 +12,11 @@
       --muted:#6b7280; --border:#e5e7eb;
       --shadow: 0 10px 25px rgba(0,0,0,0.08);
       --radius: 18px;
-      --highlight: rgba(0, 86, 214, 0.12);
-      --highlightBorder: rgba(0, 86, 214, 0.45);
     }
     *{ box-sizing:border-box; }
     body{ margin:0; font-family: Arial, sans-serif; background: var(--bg); color: var(--text); }
 
+    /* Topbar */
     .topbar{
       position: sticky; top:0; z-index: 10;
       background: linear-gradient(90deg, var(--primary), var(--primary2));
@@ -29,7 +28,10 @@
       display:flex; align-items:center; justify-content: space-between;
       gap: 14px;
     }
-    .brand{ display:flex; align-items:center; gap: 12px; min-width: 280px; }
+    .brand{
+      display:flex; align-items:center; gap: 12px;
+      min-width: 280px;
+    }
     .logos{ display:flex; align-items:center; gap: 10px; }
     .logo{
       height: 38px; width: 38px;
@@ -40,7 +42,9 @@
     }
     .brand-text h1{ margin:0; font-size: 18px; font-weight: 900; }
     .brand-text p{ margin:2px 0 0; font-size: 13px; opacity: .95; font-weight: 800; }
+
     .right-tools{ display:flex; align-items:center; gap: 10px; }
+
     .user-pill{
       display:flex; align-items:center; gap:10px;
       background: rgba(255,255,255,0.14);
@@ -56,6 +60,7 @@
       background:#22c55e;
       box-shadow: 0 0 0 3px rgba(34,197,94,0.22);
     }
+
     .logout-btn{
       border: 1px solid rgba(255,255,255,0.35);
       background: rgba(255,255,255,0.14);
@@ -65,25 +70,56 @@
       border-radius: 999px;
       cursor:pointer;
     }
+    .logout-btn:hover{ filter: brightness(0.96); }
 
-    .wrap{ max-width: 1400px; margin: 22px auto; padding: 0 14px; }
+    /* Content */
+    .wrap{
+      max-width: 1400px;
+      margin: 22px auto;
+      padding: 0 14px;
+    }
     .card{
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
-      padding: 18px;
+      padding: 22px;
     }
-    .header-row{ display:flex; align-items:flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-    .header-row h2{ margin:0; font-size: 30px; font-weight: 900; color:#0f172a; }
+    .card h2{
+      margin:0;
+      font-size: 32px;
+      font-weight: 900;
+      color:#0f172a;
+    }
 
-    .center-title{ width:100%; text-align:center; margin-top: 10px; }
-    .center-title h3{ margin: 0; color: var(--primary); font-size: 24px; font-weight: 900; letter-spacing: .3px; }
-    .center-title p{ margin: 6px 0 0; color: var(--muted); font-weight: 800; font-size: 13px; }
+    .center-title{
+      text-align:center;
+      margin-top: 10px;
+    }
+    .center-title h3{
+      margin: 0;
+      color: var(--primary);
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: .3px;
+    }
+    .center-title p{
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 13px;
+    }
 
-    .controls{ display:flex; gap: 12px; align-items:center; margin-top: 14px; flex-wrap: wrap; }
+    .controls{
+      display:flex;
+      gap: 12px;
+      align-items:center;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
     .input{
-      flex: 1; min-width: 280px;
+      flex: 1;
+      min-width: 280px;
       border: 1px solid var(--border);
       border-radius: 999px;
       padding: 12px 16px;
@@ -92,7 +128,8 @@
       background:#fff;
     }
     .btn{
-      border: none; border-radius: 999px;
+      border: none;
+      border-radius: 999px;
       padding: 12px 18px;
       background: var(--primary);
       color: white;
@@ -102,85 +139,109 @@
       display:inline-flex;
       align-items:center;
       gap:10px;
+      white-space: nowrap;
     }
+    .btn:hover{ filter: brightness(0.96); }
 
+    /* 2-column layout */
     .grid{
       display:grid;
-      grid-template-columns: 380px 1fr;
-      gap: 16px;
-      margin-top: 14px;
-      align-items:start;
+      grid-template-columns: 420px 1fr;
+      gap: 18px;
+      margin-top: 16px;
+      align-items: start;
     }
 
+    /* Left update panel */
     .panel{
       background:#fff;
       border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 14px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+      padding: 16px;
     }
-    .panel h4{ margin: 0 0 10px; font-size: 16px; font-weight: 900; color:#0f172a; }
-
-    .mini-card{
-      border:1px solid var(--border);
+    .panel h4{
+      margin:0 0 10px;
+      font-size: 18px;
+      font-weight: 900;
+      color:#0f172a;
+    }
+    .selbox{
+      border: 1px solid var(--border);
       border-radius: 14px;
-      padding: 10px;
-      background:#fbfdff;
-      margin-bottom: 10px;
+      padding: 12px;
+      background: #fbfcff;
     }
-    .mini-card .k{ color: var(--muted); font-weight: 800; font-size: 12px; }
-    .mini-card .v{ font-weight: 900; font-size: 13px; margin-top: 2px; word-break: break-word; }
-
-    .updated-badge{
-      margin-top: 10px;
-      background: #e8fff1;
-      border: 1px solid #86efac;
-      color: #166534;
-      padding: 8px 10px;
-      border-radius: 12px;
-      font-weight: 800;
-      font-size: 12px;
+    .selrow{
       display:flex;
+      gap: 8px;
+      margin: 6px 0;
+      font-size: 13px;
+      font-weight: 800;
+      color:#0f172a;
+    }
+    .selrow span{ color: var(--muted); min-width: 72px; }
+    .badge{
+      display:none;
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid #86efac;
+      background: #ecfdf5;
+      color:#166534;
+      font-weight: 900;
+      gap: 8px;
       align-items:center;
-      gap:8px;
     }
 
-    .field{ margin-top: 10px; }
-    .field label{ display:block; font-size: 12px; font-weight: 900; margin-bottom: 6px; color:#0f172a; }
-    .field input, .field select, .field textarea{
-      width:100%;
-      border:1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px 12px;
+    .field{ margin-top: 12px; }
+    .field label{
+      display:block;
       font-size: 13px;
+      font-weight: 900;
+      margin: 0 0 6px;
+      color:#0f172a;
+    }
+    .field input, .field textarea, .field select{
+      width:100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 11px 12px;
+      font-size: 14px;
       outline:none;
       background:#fff;
     }
-    .field textarea{ min-height: 70px; resize: vertical; }
-
-    .save-row{ margin-top: 12px; display:flex; gap: 10px; justify-content:flex-end; }
+    .field textarea{ min-height: 80px; resize: vertical; }
+    .save-row{
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      margin-top: 14px;
+    }
     .save-btn{
       width:100%;
       border:none;
-      background: var(--primary);
+      border-radius: 999px;
+      padding: 12px 16px;
+      background: #0b3dbb;
       color:#fff;
       font-weight: 900;
-      padding: 12px 14px;
-      border-radius: 12px;
       cursor:pointer;
       box-shadow: 0 6px 14px rgba(0,51,160,0.22);
     }
+    .save-btn:disabled{ opacity: .6; cursor:not-allowed; }
 
+    /* Table */
     .table-wrap{
       overflow:auto;
-      border-radius: 16px;
+      border-radius: 14px;
       border: 1px solid var(--border);
       background:#fff;
     }
     table{
       width:100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      min-width: 850px;
+      border-collapse: collapse;
+      min-width: 980px;
       background:#fff;
     }
     th, td{
@@ -188,7 +249,6 @@
       border-bottom: 1px solid var(--border);
       font-size: 13px;
       vertical-align: top;
-      background:#fff;
     }
     th{
       background: #f3f7ff;
@@ -200,47 +260,51 @@
       font-weight: 900;
     }
     .muted{ color: var(--muted); font-weight: 800; }
-    .clickable{ cursor:pointer; }
 
-    .mini-btn{
-      border:none;
-      background:#eaf2ff;
-      color:#0b3aa0;
-      font-weight: 900;
-      padding: 8px 10px;
-      border-radius: 10px;
-      cursor:pointer;
-      white-space: nowrap;
+    /* Clickable row + highlight */
+    tr.clickable{ cursor:pointer; }
+    tr.clickable:hover{ background: #f7fbff; }
+    tr.row-selected{
+      background: #eaf2ff !important;
+      outline: 1px solid rgba(0,51,160,0.25);
     }
 
+    /* Tags */
     .tag{
       display:inline-flex;
       align-items:center;
+      gap:6px;
       padding: 6px 10px;
       border-radius: 999px;
       font-weight: 900;
       font-size: 12px;
-      border:1px solid var(--border);
-      background:#fff;
+      white-space: nowrap;
+      border: 1px solid var(--border);
+      background: #f3f4f6;
+      color:#111827;
     }
-    .tag-updated{ background:#e8fff1; border-color:#86efac; color:#166534; }
-    .tag-new{ background:#f3f4f6; color:#6b7280; }
-
-    /* ✅ highlight selected row */
-    tr.row-selected td{
-      background: var(--highlight) !important;
-      border-bottom-color: var(--highlightBorder) !important;
+    .tag-updated{
+      background:#ecfdf5;
+      border-color:#86efac;
+      color:#166534;
     }
-    tr.row-selected td:first-child{
-      box-shadow: inset 4px 0 0 var(--primary);
+    .tag-new{
+      background:#f3f4f6;
+      border-color:#e5e7eb;
+      color:#374151;
     }
 
     @media (max-width: 1100px){
       .grid{ grid-template-columns: 1fr; }
-      table{ min-width: 700px; }
+      table{ min-width: 860px; }
+    }
+    @media (max-width: 950px){
+      .input{ min-width: 100%; }
+      .brand-text h1{ font-size: 16px; }
     }
   </style>
 
+  <!-- ✅ AUTH GUARD (Office) -->
   <script>
     (function () {
       const email = localStorage.getItem("email");
@@ -253,6 +317,7 @@
         location.replace("index.html");
         return;
       }
+
       if (role !== "office") {
         location.replace("user.html");
         return;
@@ -264,6 +329,7 @@
 <body>
   <div class="topbar">
     <div class="topbar-inner">
+
       <div class="brand">
         <div class="logos">
           <img class="logo" src="assets/images/psa.png" alt="PSA Logo">
@@ -280,16 +346,16 @@
           <span class="dot"></span>
           <span id="userEmail">user@example.gov.ph</span>
         </div>
+
         <button id="logoutBtn" class="logout-btn" type="button">Logout</button>
       </div>
+
     </div>
   </div>
 
   <div class="wrap">
     <section class="card">
-      <div class="header-row">
-        <h2>Failed Registration List</h2>
-      </div>
+      <h2>Failed Registration List</h2>
 
       <div class="center-title">
         <h3 id="provinceTitle">Province of —</h3>
@@ -299,75 +365,72 @@
       <div class="controls">
         <input id="qInput" class="input" type="text" placeholder="Search TRN / Fullname / Contact / Province / Updated" />
         <button id="refreshBtn" class="btn" type="button">
-          Refresh <span id="refreshSpinner" style="display:none;">⏳</span>
+          <span id="refreshSpinner" style="display:none;">⏳</span>
+          Refresh
         </button>
       </div>
 
       <div class="grid">
-        <aside class="panel" id="updatePanel">
+        <!-- LEFT: UPDATE PANEL -->
+        <aside id="updatePanel" class="panel">
           <h4>Update Record</h4>
 
-          <div class="mini-card">
-            <div class="k">TRN:</div>
-            <div class="v" id="selTrn">—</div>
+          <div class="selbox">
+            <div class="selrow"><span>TRN:</span> <div id="selTrn">—</div></div>
+            <div class="selrow"><span>Name:</span> <div id="selName">—</div></div>
+            <div class="selrow"><span>Contact:</span> <div id="selContact">—</div></div>
 
-            <div class="k" style="margin-top:6px;">Name:</div>
-            <div class="v" id="selName">—</div>
-
-            <div class="k" style="margin-top:6px;">Contact:</div>
-            <div class="v" id="selContact">—</div>
-
-            <div id="updatedBadge" class="updated-badge" style="display:none;">
-              ✅ Updated Before
+            <div id="updatedBadge" class="badge">
+              ✅ <span>Updated Before</span>
             </div>
           </div>
 
           <div class="field">
-            <label>Present Address</label>
+            <label for="presentAddress">Present Address</label>
             <textarea id="presentAddress" placeholder="Enter present address..."></textarea>
           </div>
 
           <div class="field">
-            <label>Province (Present)</label>
+            <label for="provincePresent">Province (Present)</label>
             <input id="provincePresent" type="text" placeholder="Enter province..." />
           </div>
 
           <div class="field">
-            <label>Date Contacted</label>
+            <label for="dateContacted">Date Contacted</label>
             <input id="dateContacted" type="date" />
           </div>
 
           <div class="field">
-            <label>Means of Notification</label>
+            <label for="meansOfNotification">Means of Notification</label>
             <select id="meansOfNotification">
               <option value="">Select Means...</option>
             </select>
           </div>
 
           <div class="field">
-            <label>Recapture Status</label>
+            <label for="recaptureStatus">Recapture Status</label>
             <select id="recaptureStatus">
               <option value="">Select Status...</option>
             </select>
           </div>
 
           <div class="field">
-            <label>Recapture Schedule</label>
+            <label for="recaptureSchedule">Recapture Schedule</label>
             <input id="recaptureSchedule" type="date" />
           </div>
 
           <div class="field">
-            <label>Province (Registration)</label>
-            <input id="provinceRegistration" type="text" placeholder="Enter registration province..." />
+            <label for="provinceRegistration">Province (Registration)</label>
+            <input id="provinceRegistration" type="text" placeholder="Enter province..." />
           </div>
 
           <div class="field">
-            <label>City/Municipality</label>
+            <label for="cityMunicipality">City/Municipality</label>
             <input id="cityMunicipality" type="text" placeholder="Enter city/municipality..." />
           </div>
 
           <div class="field">
-            <label>Registration Center</label>
+            <label for="registrationCenter">Registration Center</label>
             <input id="registrationCenter" type="text" placeholder="Enter registration center..." />
           </div>
 
@@ -376,6 +439,7 @@
           </div>
         </aside>
 
+        <!-- RIGHT: TABLE -->
         <div class="table-wrap">
           <table>
             <thead>
@@ -384,22 +448,24 @@
                 <th>Fullname</th>
                 <th>Contact No.</th>
                 <th>Updated</th>
-                <th>Action</th>
               </tr>
             </thead>
             <tbody id="tbody">
-              <tr><td colspan="5" class="muted">Loading...</td></tr>
+              <tr><td colspan="4" class="muted">Loading...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
+
     </section>
   </div>
 
   <script>
+    // show logged in email
     const emailEl = document.getElementById("userEmail");
     if (emailEl) emailEl.textContent = localStorage.getItem("email") || "";
 
+    // logout
     const logoutBtn = document.getElementById("logoutBtn");
     logoutBtn && logoutBtn.addEventListener("click", () => {
       localStorage.removeItem("email");
@@ -411,6 +477,6 @@
     });
   </script>
 
-  <script src="assets/js/office.js?v=600" defer></script>
+  <script src="assets/js/office.js?v=200" defer></script>
 </body>
 </html>
