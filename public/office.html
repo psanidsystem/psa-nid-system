@@ -82,8 +82,16 @@
       font-size: 20px;
       font-weight: 900;
       color: var(--primary);
-      margin: 6px 0 6px;
+      margin: 8px 0 6px;
       letter-spacing: .5px;
+    }
+
+    .subtext{
+      text-align:center;
+      color: var(--muted);
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 700;
     }
   </style>
 </head>
@@ -107,17 +115,13 @@
     <div class="card">
       <h2 style="margin:0;">Failed Registration List</h2>
 
-      <!-- ✅ CENTER TITLE -->
-      <div id="provinceTitle" class="province-title"></div>
-
-      <p id="subText" style="text-align:center; color:#6b7280;">
-        Loading...
-      </p>
+      <div id="provinceTitle" class="province-title">Province of —</div>
+      <div id="subText" class="subtext">Loading...</div>
 
       <div class="controls">
         <input id="qInput" class="input" type="text"
-          placeholder="Search TRN / Fullname / Contact / Email / Address" />
-        <button id="refreshBtn" class="btn">Refresh</button>
+          placeholder="Search TRN / Fullname / Address / Province" />
+        <button id="refreshBtn" class="btn" type="button">Refresh</button>
       </div>
 
       <div class="table-wrap">
@@ -140,6 +144,7 @@
     </div>
   </div>
 
-  <script src="assets/js/office.js?v=FINAL" defer></script>
+  <!-- IMPORTANT: bump version to avoid cache -->
+  <script src="assets/js/office.js?v=999" defer></script>
 </body>
 </html>
