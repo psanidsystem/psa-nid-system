@@ -1,356 +1,268 @@
-const API = location.origin;
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const { google } = require("googleapis");
+const { GoogleAuth } = require("google-auth-library");
 
-// ===== Session info =====
-const sessionEmail = localStorage.getItem("email") || "";
-const sessionRole = (localStorage.getItem("role") || "").toLowerCase();
-const sessionProvince = (localStorage.getItem("province") || "").trim();
+const app = express();
 
-// ===== Elements =====
-const userEmailEl = document.getElementById("userEmail");
-const logoutBtnEl = document.getElementById("logoutBtn");
+// ===== Middlewares =====
+app.use(cors());
+app.use(express.json());
 
-const provinceTitleEl = document.getElementById("provinceTitle");
-const countTextEl = document.getElementById("countText");
+// ✅ Serve frontend from /public
+const PUBLIC_DIR = path.join(__dirname, "public");
+app.use(express.static(PUBLIC_DIR));
 
-const qInputEl = document.getElementById("qInput");
-const refreshBtnEl = document.getElementById("refreshBtn");
-const refreshSpinnerEl = document.getElementById("refreshSpinner");
+// ✅ Root route -> UI
+app.get("/", (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
+});
 
-const tbodyEl = document.getElementById("tbody");
+// ✅ Health check
+app.get("/health", (req, res) => {
+  res.json({ ok: true, service: "psa-nid-system", time: new Date().toISOString() });
+});
 
-// Left panel elements
-const selTrnEl = document.getElementById("selTrn");
-const selNameEl = document.getElementById("selName");
-const selContactEl = document.getElementById("selContact");
-
-const updatedBadgeEl = document.getElementById("updatedBadge");
-
-const presentAddressEl = document.getElementById("presentAddress");
-const provincePresentEl = document.getElementById("provincePresent");
-const dateContactedEl = document.getElementById("dateContacted");
-const meansEl = document.getElementById("meansOfNotification");
-const recaptureStatusEl = document.getElementById("recaptureStatus");
-const recaptureScheduleEl = document.getElementById("recaptureSchedule");
-const provinceRegEl = document.getElementById("provinceRegistration");
-const cityMunEl = document.getElementById("cityMunicipality");
-const regCenterEl = document.getElementById("registrationCenter");
-const saveBtnEl = document.getElementById("saveBtn");
-
-// ===== Logout =====
-function doLogout() {
-  localStorage.removeItem("email");
-  localStorage.removeItem("role");
-  localStorage.removeItem("sessionAt");
-  localStorage.removeItem("province");
-  localStorage.removeItem("position");
-  location.replace("index.html");
+// ===== Google Sheets Setup (ENV JSON) =====
+function getCredentialsFromEnv() {
+  const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+  if (!raw) throw new Error("Missing env GOOGLE_APPLICATION_CREDENTIALS_JSON in Render.");
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error("Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON.");
+  }
 }
-logoutBtnEl && logoutBtnEl.addEventListener("click", doLogout);
 
-// ===== Show header info =====
-if (userEmailEl) userEmailEl.textContent = sessionEmail || "—";
-if (provinceTitleEl) {
-  provinceTitleEl.textContent = sessionProvince ? `Province of ${sessionProvince}` : "Province of —";
-}
+const credentials = getCredentialsFromEnv();
+
+const auth = new GoogleAuth({
+  credentials,
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+});
+
+const spreadsheetId = "1RJ16ZSoYzFgeYUmeXo21PwkWfG07xC_5R8YqMAtys8s";
+
+// Sheets
+const sheetFailed = "Failed Registration";
+const sheetDropdown = "Dropdown";
 
 // ===== Helpers =====
-function escapeHtml(s) {
-  return (s ?? "").toString()
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+async function getClient() {
+  const authClient = await auth.getClient();
+  return google.sheets({ version: "v4", auth: authClient });
 }
 
-function setCount(n) {
-  if (!countTextEl) return;
-  countTextEl.textContent = `Showing ${n} record(s)`;
+function uniq(arr) {
+  return [...new Set(arr)];
 }
 
-// ===== Cache =====
-let allRows = [];
-let selectedRowNumber = null;
+function isUpdatedFromHP(row) {
+  // H..P = indexes 7..15
+  for (let i = 7; i <= 15; i++) {
+    if (String(row[i] || "").trim()) return true;
+  }
+  return false;
+}
 
-// ===== Dropdown loaders =====
-async function loadMeansDropdown() {
-  if (!meansEl) return;
-  meansEl.innerHTML = `<option value="">Select Means...</option>`;
+// =============================================================
+// ✅ DROPDOWN OPTIONS
+// Means of Notification: Dropdown!A2:A
+// Recapture Status:      Dropdown!E2:E   ✅ (as per imong giingon)
+// =============================================================
+app.get("/api/means-notification", async (req, res) => {
   try {
-    const r = await fetch(API + "/api/means-notification");
-    const d = await r.json();
-    if (!d.success) return;
-
-    for (const item of d.items || []) {
-      const opt = document.createElement("option");
-      opt.value = item;
-      opt.textContent = item;
-      meansEl.appendChild(opt);
-    }
-  } catch (e) {
-    console.error("loadMeansDropdown error:", e);
-  }
-}
-
-async function loadRecaptureStatusDropdown() {
-  if (!recaptureStatusEl) return;
-  recaptureStatusEl.innerHTML = `<option value="">Select Status...</option>`;
-  try {
-    const r = await fetch(API + "/api/recapture-status-options");
-    const d = await r.json();
-    if (!d.success) return;
-
-    for (const item of d.items || []) {
-      const opt = document.createElement("option");
-      opt.value = item;
-      opt.textContent = item;
-      recaptureStatusEl.appendChild(opt);
-    }
-  } catch (e) {
-    console.error("loadRecaptureStatusDropdown error:", e);
-  }
-}
-
-// ===== Render table =====
-function renderRows(rows) {
-  if (!tbodyEl) return;
-  tbodyEl.innerHTML = "";
-
-  if (!rows || rows.length === 0) {
-    tbodyEl.innerHTML = `<tr><td colspan="5" class="muted">No records found.</td></tr>`;
-    setCount(0);
-    return;
-  }
-
-  setCount(rows.length);
-
-  for (const r of rows) {
-    const trn = escapeHtml(r.trn || "");
-    const fullname = escapeHtml(r.fullname || "");
-    const contactNo = escapeHtml(r.contactNo || "");
-
-    const updatedTag = r.updated
-      ? `<span class="tag tag-updated">✅ Updated</span>`
-      : `<span class="tag tag-new">—</span>`;
-
-    const tr = document.createElement("tr");
-    tr.className = "clickable";
-    tr.dataset.rowNumber = String(r.rowNumber);
-
-    tr.innerHTML = `
-      <td>${trn}</td>
-      <td>${fullname}</td>
-      <td>${contactNo}</td>
-      <td>${updatedTag}</td>
-      <td><button class="mini-btn" type="button">Update</button></td>
-    `;
-
-    tr.addEventListener("click", () => selectRow(r.rowNumber));
-    tbodyEl.appendChild(tr);
-  }
-}
-
-function applySearch() {
-  const q = (qInputEl?.value || "").trim().toLowerCase();
-  if (!q) {
-    renderRows(allRows);
-    return;
-  }
-
-  const filtered = allRows.filter((r) => {
-    const hay = [
-      r.trn,
-      r.fullname,
-      r.contactNo,
-      r.province,
-      r.updated ? "updated" : "",
-    ].join(" ").toLowerCase();
-
-    return hay.includes(q);
-  });
-
-  renderRows(filtered);
-}
-
-// ===== Fetch list =====
-async function loadFailedRegistrations() {
-  if (!sessionProvince) {
-    if (tbodyEl) tbodyEl.innerHTML = `<tr><td colspan="5" class="muted">No province found in session. Please login again.</td></tr>`;
-    setCount(0);
-    return;
-  }
-
-  if (refreshBtnEl) refreshBtnEl.classList.add("loading");
-  if (refreshBtnEl) refreshBtnEl.disabled = true;
-  if (refreshSpinnerEl) refreshSpinnerEl.style.display = "inline-block";
-
-  try {
-    const url = API + "/api/failed-registrations?province=" + encodeURIComponent(sessionProvince);
-    const r = await fetch(url);
-    const d = await r.json();
-
-    if (!d.success) {
-      allRows = [];
-      renderRows(allRows);
-      return;
-    }
-
-    allRows = Array.isArray(d.records) ? d.records : [];
-    applySearch();
-  } catch (e) {
-    console.error("loadFailedRegistrations error:", e);
-    allRows = [];
-    renderRows(allRows);
-  } finally {
-    if (refreshBtnEl) refreshBtnEl.classList.remove("loading");
-    if (refreshBtnEl) refreshBtnEl.disabled = false;
-    if (refreshSpinnerEl) refreshSpinnerEl.style.display = "none";
-  }
-}
-
-// ===== Date helpers =====
-function toISODate(val) {
-  const s = String(val || "").trim();
-  if (!s) return "";
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) {
-    const mm = String(m[1]).padStart(2, "0");
-    const dd = String(m[2]).padStart(2, "0");
-    const yyyy = m[3];
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  const d = new Date(s);
-  if (!isNaN(d.getTime())) {
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  return "";
-}
-
-function isoToMMDDYYYY(iso) {
-  const s = String(iso || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return "";
-  const [yyyy, mm, dd] = s.split("-");
-  return `${mm}/${dd}/${yyyy}`;
-}
-
-function setMinToday(inputEl) {
-  if (!inputEl) return;
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  inputEl.min = `${yyyy}-${mm}-${dd}`;
-}
-setMinToday(dateContactedEl);
-setMinToday(recaptureScheduleEl);
-
-// ===== Select row => load details =====
-async function selectRow(rowNumber) {
-  selectedRowNumber = rowNumber;
-
-  try {
-    const r = await fetch(API + "/api/failed-registration-row?rowNumber=" + encodeURIComponent(rowNumber));
-    const d = await r.json();
-    if (!d.success) return;
-
-    const x = d.data || {};
-
-    if (selTrnEl) selTrnEl.textContent = x.trn || "—";
-    if (selNameEl) selNameEl.textContent = x.fullname || "—";
-    if (selContactEl) selContactEl.textContent = x.contactNo || "—";
-
-    if (presentAddressEl) presentAddressEl.value = x.presentAddress || "";
-    if (provincePresentEl) provincePresentEl.value = x.provincePresent || "";
-    if (dateContactedEl) dateContactedEl.value = toISODate(x.dateContacted || "");
-    if (meansEl) meansEl.value = x.meansOfNotification || "";
-    if (recaptureStatusEl) recaptureStatusEl.value = x.recaptureStatus || "";
-    if (recaptureScheduleEl) recaptureScheduleEl.value = toISODate(x.recaptureSchedule || "");
-    if (provinceRegEl) provinceRegEl.value = x.provinceRegistration || "";
-    if (cityMunEl) cityMunEl.value = x.cityMunicipality || "";
-    if (regCenterEl) regCenterEl.value = x.registrationCenter || "";
-
-    // ✅ Updated badge (no timestamp; from logs boolean)
-    if (updatedBadgeEl) {
-      updatedBadgeEl.style.display = x.updated ? "flex" : "none";
-    }
-  } catch (e) {
-    console.error("selectRow error:", e);
-  }
-}
-
-// ===== Save update =====
-async function saveUpdate() {
-  if (!selectedRowNumber) {
-    alert("Please select a record first.");
-    return;
-  }
-
-  const payload = {
-    rowNumber: selectedRowNumber,
-    updaterEmail: localStorage.getItem("email") || "",
-    trn: (selTrnEl?.textContent || "").trim(),
-
-    presentAddress: presentAddressEl?.value || "",
-    provincePresent: provincePresentEl?.value || "",
-    dateContacted: isoToMMDDYYYY(dateContactedEl?.value || ""),
-    meansOfNotification: meansEl?.value || "",
-    recaptureStatus: recaptureStatusEl?.value || "",
-    recaptureSchedule: isoToMMDDYYYY(recaptureScheduleEl?.value || ""),
-    provinceRegistration: provinceRegEl?.value || "",
-    cityMunicipality: cityMunEl?.value || "",
-    registrationCenter: regCenterEl?.value || "",
-  };
-
-  try {
-    saveBtnEl && (saveBtnEl.disabled = true);
-    saveBtnEl && (saveBtnEl.textContent = "Saving...");
-
-    const r = await fetch(API + "/api/failed-registration-update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+    const sheets = await getClient();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetDropdown}!A2:A`,
     });
 
-    const d = await r.json();
-    if (!d.success) {
-      alert(d.message || "Update failed.");
-      return;
-    }
+    const items = (result.data.values || [])
+      .map((r) => String(r[0] || "").trim())
+      .filter(Boolean);
 
-    // show badge now
-    if (updatedBadgeEl) updatedBadgeEl.style.display = "flex";
-
-    // refresh list so ✅ Updated appears
-    await loadFailedRegistrations();
-
-    alert("✅ Updated successfully!");
-  } catch (e) {
-    console.error("saveUpdate error:", e);
-    alert("Server error while updating.");
-  } finally {
-    saveBtnEl && (saveBtnEl.disabled = false);
-    saveBtnEl && (saveBtnEl.textContent = "Save Update");
+    return res.json({ success: true, items: uniq(items) });
+  } catch (err) {
+    console.error("Error in GET /api/means-notification:", err.message || err);
+    return res.status(500).json({ success: false, message: "Error reading means of notification." });
   }
-}
+});
 
-// ===== Events =====
-refreshBtnEl && refreshBtnEl.addEventListener("click", loadFailedRegistrations);
-qInputEl && qInputEl.addEventListener("input", applySearch);
-saveBtnEl && saveBtnEl.addEventListener("click", saveUpdate);
+app.get("/api/recapture-status-options", async (req, res) => {
+  try {
+    const sheets = await getClient();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetDropdown}!E2:E`,
+    });
 
-// ===== Guard =====
-if (sessionRole !== "office") {
-  location.replace("user.html");
-} else {
-  Promise.all([loadMeansDropdown(), loadRecaptureStatusDropdown()])
-    .then(loadFailedRegistrations)
-    .catch(loadFailedRegistrations);
-}
+    const items = (result.data.values || [])
+      .map((r) => String(r[0] || "").trim())
+      .filter(Boolean);
+
+    return res.json({ success: true, items: uniq(items) });
+  } catch (err) {
+    console.error("Error in GET /api/recapture-status-options:", err.message || err);
+    return res.status(500).json({ success: false, message: "Error reading recapture status." });
+  }
+});
+
+// =============================================================
+// ✅ OFFICE LIST
+// Province filter uses COLUMN G (index 6) ✅
+// Columns:
+// A No.
+// B TRN
+// C Fullname
+// D Contact No.
+// E Email Address
+// F Permanent Address
+// G Province   ✅ BASIS
+// H-P are update columns (Present Address..Registration Center)
+// =============================================================
+app.get("/api/failed-registrations", async (req, res) => {
+  try {
+    const provinceQ = String(req.query.province || "").trim().toLowerCase();
+    const sheets = await getClient();
+
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetFailed}!A2:P`,
+    });
+
+    const rows = result.data.values || [];
+
+    const records = rows
+      .map((r, i) => {
+        const rowNumber = i + 2;
+
+        const trn = String(r[1] || "").trim();       // B
+        const fullname = String(r[2] || "").trim();  // C
+        if (!trn) return null;
+
+        const contactNo = String(r[3] || "").trim(); // D
+        const province = String(r[6] || "").trim();  // ✅ G
+
+        if (provinceQ && province.toLowerCase() !== provinceQ) return null;
+
+        return {
+          rowNumber,
+          trn,
+          fullname,
+          contactNo,
+          province,
+          updated: isUpdatedFromHP(r),
+        };
+      })
+      .filter(Boolean);
+
+    return res.json({ success: true, records });
+  } catch (err) {
+    console.error("Error in GET /api/failed-registrations:", err.message || err);
+    return res.status(500).json({ success: false, message: "Error loading failed registrations." });
+  }
+});
+
+// =============================================================
+// ✅ GET SINGLE ROW (for autofill on update panel)
+// Returns updated flag based on H-P
+// =============================================================
+app.get("/api/failed-registration-row", async (req, res) => {
+  try {
+    const rn = Number(req.query.rowNumber);
+    if (!rn || rn < 2) return res.json({ success: false, message: "Invalid rowNumber." });
+
+    const sheets = await getClient();
+
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetFailed}!A${rn}:P${rn}`,
+    });
+
+    const row = ((result.data.values || [])[0] || []);
+
+    const data = {
+      rowNumber: rn,
+      trn: String(row[1] || "").trim(),       // B
+      fullname: String(row[2] || "").trim(),  // C
+      contactNo: String(row[3] || "").trim(), // D
+      province: String(row[6] || "").trim(),  // G
+      updated: isUpdatedFromHP(row),
+
+      // H-P autofill
+      presentAddress: String(row[7] || "").trim(),        // H
+      provincePresent: String(row[8] || "").trim(),       // I
+      dateContacted: String(row[9] || "").trim(),         // J
+      meansOfNotification: String(row[10] || "").trim(),  // K
+      recaptureStatus: String(row[11] || "").trim(),      // L
+      recaptureSchedule: String(row[12] || "").trim(),    // M
+      provinceRegistration: String(row[13] || "").trim(), // N
+      cityMunicipality: String(row[14] || "").trim(),     // O
+      registrationCenter: String(row[15] || "").trim(),   // P
+    };
+
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error("Error in GET /api/failed-registration-row:", err.message || err);
+    return res.status(500).json({ success: false, message: "Error reading row." });
+  }
+});
+
+// =============================================================
+// ✅ UPDATE H–P ONLY (NO Q, NO LOGS)
+// =============================================================
+app.post("/api/failed-registration-update", async (req, res) => {
+  try {
+    const {
+      rowNumber,
+      presentAddress,
+      provincePresent,
+      dateContacted,
+      meansOfNotification,
+      recaptureStatus,
+      recaptureSchedule,
+      provinceRegistration,
+      cityMunicipality,
+      registrationCenter,
+    } = req.body || {};
+
+    const rn = Number(rowNumber);
+    if (!rn || rn < 2) return res.json({ success: false, message: "Invalid rowNumber." });
+
+    const sheets = await getClient();
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetFailed}!H${rn}:P${rn}`, // ✅ H-P only
+      valueInputOption: "RAW",
+      requestBody: {
+        values: [[
+          String(presentAddress || "").trim(),         // H
+          String(provincePresent || "").trim(),        // I
+          String(dateContacted || "").trim(),          // J
+          String(meansOfNotification || "").trim(),    // K
+          String(recaptureStatus || "").trim(),        // L
+          String(recaptureSchedule || "").trim(),      // M
+          String(provinceRegistration || "").trim(),   // N
+          String(cityMunicipality || "").trim(),       // O
+          String(registrationCenter || "").trim(),     // P
+        ]],
+      },
+    });
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Error in POST /api/failed-registration-update:", err.message || err);
+    return res.status(500).json({ success: false, message: "Server error while updating record." });
+  }
+});
+
+// ✅ 404 for API routes only
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: `Route not found: ${req.method} ${req.originalUrl}` });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("🔥 Server running on port " + PORT));
