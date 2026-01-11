@@ -14,7 +14,6 @@ const countTextEl = document.getElementById("countText");
 
 const qInputEl = document.getElementById("qInput");
 const refreshBtnEl = document.getElementById("refreshBtn");
-const refreshSpinnerEl = document.getElementById("refreshSpinner");
 
 const tbodyEl = document.getElementById("tbody");
 const updatePanelEl = document.getElementById("updatePanel");
@@ -25,8 +24,8 @@ const selNameEl = document.getElementById("selName");
 const selContactEl = document.getElementById("selContact");
 const updatedBadgeEl = document.getElementById("updatedBadge");
 
-const presentAddressEl = document.getElementById("presentAddress");
-const provincePresentEl = document.getElementById("provincePresent");
+const presentAddressEl = document.getElementById("presentAddress");      // read-only display (still editable if you want)
+const provincePresentEl = document.getElementById("provincePresent");    // read-only display (still editable if you want)
 const dateContactedEl = document.getElementById("dateContacted");
 const meansEl = document.getElementById("meansOfNotification");
 const recaptureStatusEl = document.getElementById("recaptureStatus");
@@ -47,11 +46,9 @@ function doLogout() {
 }
 logoutBtnEl && logoutBtnEl.addEventListener("click", doLogout);
 
-// ===== Show header info =====
+// ===== Header info =====
 if (userEmailEl) userEmailEl.textContent = sessionEmail || "—";
-if (provinceTitleEl) {
-  provinceTitleEl.textContent = sessionProvince ? `Province of ${sessionProvince}` : "Province of —";
-}
+if (provinceTitleEl) provinceTitleEl.textContent = sessionProvince ? `Province of ${sessionProvince}` : "Province of —";
 
 function escapeHtml(s) {
   return (s ?? "").toString()
@@ -71,21 +68,17 @@ function setCount(n) {
 let allRows = [];
 let selectedRowNumber = null;
 
-// ✅ highlight helpers
+// highlight helpers
 function clearRowHighlights() {
   if (!tbodyEl) return;
-  const trs = tbodyEl.querySelectorAll("tr");
-  trs.forEach((tr) => tr.classList.remove("row-selected"));
+  tbodyEl.querySelectorAll("tr").forEach((tr) => tr.classList.remove("row-selected"));
 }
-
 function highlightRow(rowNumber) {
   if (!tbodyEl) return;
   clearRowHighlights();
   const tr = tbodyEl.querySelector(`tr[data-row-number="${rowNumber}"]`);
   tr && tr.classList.add("row-selected");
 }
-
-// ✅ auto scroll to Update panel
 function scrollToUpdatePanel() {
   if (!updatePanelEl) return;
   updatePanelEl.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -130,13 +123,55 @@ async function loadRecaptureStatusDropdown() {
   }
 }
 
-// ===== Render table =====
+// ===== Date helpers =====
+function toISODate(val) {
+  const s = String(val || "").trim();
+  if (!s) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) {
+    const mm = String(m[1]).padStart(2, "0");
+    const dd = String(m[2]).padStart(2, "0");
+    const yyyy = m[3];
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  return "";
+}
+
+function isoToMMDDYYYY(iso) {
+  const s = String(iso || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return "";
+  const [yyyy, mm, dd] = s.split("-");
+  return `${mm}/${dd}/${yyyy}`;
+}
+
+function setMinToday(inputEl) {
+  if (!inputEl) return;
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  inputEl.min = `${yyyy}-${mm}-${dd}`;
+}
+setMinToday(dateContactedEl);
+setMinToday(recaptureScheduleEl);
+
+// ===== Render table (NO action column) =====
 function renderRows(rows) {
   if (!tbodyEl) return;
   tbodyEl.innerHTML = "";
 
   if (!rows || rows.length === 0) {
-    tbodyEl.innerHTML = `<tr><td colspan="5" class="muted">No records found.</td></tr>`;
+    tbodyEl.innerHTML = `<tr><td colspan="4" class="muted">No records found.</td></tr>`;
     setCount(0);
     return;
   }
@@ -161,20 +196,10 @@ function renderRows(rows) {
       <td>${fullname}</td>
       <td>${contactNo}</td>
       <td>${updatedTag}</td>
-      <td><button class="mini-btn" type="button">Update</button></td>
     `;
 
-    // ✅ Row click
     tr.addEventListener("click", () => selectRow(r.rowNumber, true));
 
-    // ✅ Update button click (prevent double trigger)
-    const btn = tr.querySelector(".mini-btn");
-    btn && btn.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      selectRow(r.rowNumber, true);
-    });
-
-    // Keep highlight after re-render if selected
     if (selectedRowNumber && Number(selectedRowNumber) === Number(r.rowNumber)) {
       tr.classList.add("row-selected");
     }
@@ -185,10 +210,7 @@ function renderRows(rows) {
 
 function applySearch() {
   const q = (qInputEl?.value || "").trim().toLowerCase();
-  if (!q) {
-    renderRows(allRows);
-    return;
-  }
+  if (!q) return renderRows(allRows);
 
   const filtered = allRows.filter((r) => {
     const hay = [
@@ -198,7 +220,6 @@ function applySearch() {
       r.province,
       r.updated ? "updated" : "",
     ].join(" ").toLowerCase();
-
     return hay.includes(q);
   });
 
@@ -208,13 +229,12 @@ function applySearch() {
 // ===== Fetch list =====
 async function loadFailedRegistrations() {
   if (!sessionProvince) {
-    if (tbodyEl) tbodyEl.innerHTML = `<tr><td colspan="5" class="muted">No province found in session. Please login again.</td></tr>`;
+    if (tbodyEl) tbodyEl.innerHTML = `<tr><td colspan="4" class="muted">No province found in session. Please login again.</td></tr>`;
     setCount(0);
     return;
   }
 
-  if (refreshBtnEl) refreshBtnEl.disabled = true;
-  if (refreshSpinnerEl) refreshSpinnerEl.style.display = "inline-block";
+  refreshBtnEl && (refreshBtnEl.disabled = true);
 
   try {
     const url = API + "/api/failed-registrations?province=" + encodeURIComponent(sessionProvince);
@@ -236,61 +256,14 @@ async function loadFailedRegistrations() {
     allRows = [];
     renderRows(allRows);
   } finally {
-    if (refreshBtnEl) refreshBtnEl.disabled = false;
-    if (refreshSpinnerEl) refreshSpinnerEl.style.display = "none";
+    refreshBtnEl && (refreshBtnEl.disabled = false);
   }
 }
-
-// ===== Date helpers =====
-function toISODate(val) {
-  const s = String(val || "").trim();
-  if (!s) return "";
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) {
-    const mm = String(m[1]).padStart(2, "0");
-    const dd = String(m[2]).padStart(2, "0");
-    const yyyy = m[3];
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  const d = new Date(s);
-  if (!isNaN(d.getTime())) {
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  return "";
-}
-
-function isoToMMDDYYYY(iso) {
-  const s = String(iso || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return "";
-  const [yyyy, mm, dd] = s.split("-");
-  return `${mm}/${dd}/${yyyy}`;
-}
-
-// min today (no backdate)
-function setMinToday(inputEl) {
-  if (!inputEl) return;
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  inputEl.min = `${yyyy}-${mm}-${dd}`;
-}
-setMinToday(dateContactedEl);
-setMinToday(recaptureScheduleEl);
 
 // ===== Select row => load details + highlight + scroll =====
 async function selectRow(rowNumber, shouldScroll = false) {
   selectedRowNumber = rowNumber;
   highlightRow(rowNumber);
-
   if (shouldScroll) scrollToUpdatePanel();
 
   try {
@@ -300,27 +273,30 @@ async function selectRow(rowNumber, shouldScroll = false) {
 
     const x = d.data || {};
 
-    if (selTrnEl) selTrnEl.textContent = x.trn || "—";
-    if (selNameEl) selNameEl.textContent = x.fullname || "—";
-    if (selContactEl) selContactEl.textContent = x.contactNo || "—";
+    selTrnEl && (selTrnEl.textContent = x.trn || "—");
+    selNameEl && (selNameEl.textContent = x.fullname || "—");
+    selContactEl && (selContactEl.textContent = x.contactNo || "—");
 
-    if (presentAddressEl) presentAddressEl.value = x.presentAddress || "";
-    if (provincePresentEl) provincePresentEl.value = x.provincePresent || "";
-    if (dateContactedEl) dateContactedEl.value = toISODate(x.dateContacted || "");
-    if (meansEl) meansEl.value = x.meansOfNotification || "";
-    if (recaptureStatusEl) recaptureStatusEl.value = x.recaptureStatus || "";
-    if (recaptureScheduleEl) recaptureScheduleEl.value = toISODate(x.recaptureSchedule || "");
-    if (provinceRegEl) provinceRegEl.value = x.provinceRegistration || "";
-    if (cityMunEl) cityMunEl.value = x.cityMunicipality || "";
-    if (regCenterEl) regCenterEl.value = x.registrationCenter || "";
+    // show these as existing values (editable if you want)
+    presentAddressEl && (presentAddressEl.value = x.presentAddress || "");
+    provincePresentEl && (provincePresentEl.value = x.provincePresent || "");
 
+    dateContactedEl && (dateContactedEl.value = toISODate(x.dateContacted || ""));
+    meansEl && (meansEl.value = x.meansOfNotification || "");
+    recaptureStatusEl && (recaptureStatusEl.value = x.recaptureStatus || "");
+    recaptureScheduleEl && (recaptureScheduleEl.value = toISODate(x.recaptureSchedule || ""));
+    provinceRegEl && (provinceRegEl.value = x.provinceRegistration || "");
+    cityMunEl && (cityMunEl.value = x.cityMunicipality || "");
+    regCenterEl && (regCenterEl.value = x.registrationCenter || "");
+
+    // ✅ updated-before badge based on J–P
     if (updatedBadgeEl) updatedBadgeEl.style.display = x.updated ? "flex" : "none";
   } catch (e) {
     console.error("selectRow error:", e);
   }
 }
 
-// ===== Save update =====
+// ===== Save update (updates J–P only) =====
 async function saveUpdate() {
   if (!selectedRowNumber) {
     alert("Please select a record first.");
@@ -329,8 +305,6 @@ async function saveUpdate() {
 
   const payload = {
     rowNumber: selectedRowNumber,
-    presentAddress: presentAddressEl?.value || "",
-    provincePresent: provincePresentEl?.value || "",
     dateContacted: isoToMMDDYYYY(dateContactedEl?.value || ""),
     meansOfNotification: meansEl?.value || "",
     recaptureStatus: recaptureStatusEl?.value || "",
@@ -339,6 +313,15 @@ async function saveUpdate() {
     cityMunicipality: cityMunEl?.value || "",
     registrationCenter: regCenterEl?.value || "",
   };
+
+  // ✅ require at least 1 field so dili mo mark updated kung wala gi input
+  const anyInput = Object.entries(payload)
+    .filter(([k]) => k !== "rowNumber")
+    .some(([, v]) => String(v || "").trim());
+  if (!anyInput) {
+    alert("Wala kay gi input. Please fill at least one field before saving.");
+    return;
+  }
 
   try {
     saveBtnEl && (saveBtnEl.disabled = true);
@@ -356,10 +339,10 @@ async function saveUpdate() {
       return;
     }
 
-    if (updatedBadgeEl) updatedBadgeEl.style.display = "flex";
+    updatedBadgeEl && (updatedBadgeEl.style.display = "flex");
 
     await loadFailedRegistrations();
-    if (selectedRowNumber) highlightRow(selectedRowNumber);
+    selectedRowNumber && highlightRow(selectedRowNumber);
 
     alert("✅ Updated successfully!");
   } catch (e) {
