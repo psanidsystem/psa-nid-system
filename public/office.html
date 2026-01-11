@@ -16,7 +16,6 @@
     *{ box-sizing:border-box; }
     body{ margin:0; font-family: Arial, sans-serif; background: var(--bg); color: var(--text); }
 
-    /* Topbar */
     .topbar{
       position: sticky; top:0; z-index: 10;
       background: linear-gradient(90deg, var(--primary), var(--primary2));
@@ -73,7 +72,6 @@
     }
     .logout-btn:hover{ filter: brightness(0.96); }
 
-    /* Content */
     .wrap{
       max-width: 1400px;
       margin: 22px auto;
@@ -208,7 +206,6 @@
 
       <div class="brand">
         <div class="logos">
-          <!-- ✅ CORRECT PATH based on your repo: public/assets/images/... -->
           <img class="logo" src="assets/images/psa.png" alt="PSA Logo">
           <img class="logo" src="assets/images/philsys.png" alt="PhilSys Logo">
         </div>
@@ -221,7 +218,7 @@
       <div class="right-tools">
         <div class="user-pill" title="Logged in user">
           <span class="dot"></span>
-          <span id="userEmail">user@example.gov.ph</span>
+          <span id="userEmail">—</span>
         </div>
 
         <button id="logoutBtn" class="logout-btn" type="button">Logout</button>
@@ -240,8 +237,11 @@
       </div>
 
       <div class="controls">
-        <input id="qInput" class="input" type="text" placeholder="Search TRN / Fullname / Address / Province" />
-        <button id="refreshBtn" class="btn" type="button">Refresh</button>
+        <input id="qInput" class="input" type="text" placeholder="Search TRN / Fullname / Contact / Email / Address / Province" />
+        <button id="refreshBtn" class="btn" type="button">
+          Refresh
+          <span id="refreshSpinner" style="display:none;">...</span>
+        </button>
       </div>
 
       <div class="table-wrap">
@@ -264,24 +264,6 @@
     </section>
   </div>
 
-  <script>
-    // show logged in email
-    const emailEl = document.getElementById("userEmail");
-    if (emailEl) emailEl.textContent = localStorage.getItem("email") || "";
-
-    // logout
-    const logoutBtn = document.getElementById("logoutBtn");
-    logoutBtn && logoutBtn.addEventListener("click", () => {
-      localStorage.removeItem("email");
-      localStorage.removeItem("role");
-      localStorage.removeItem("sessionAt");
-      localStorage.removeItem("position");
-      localStorage.removeItem("province");
-      location.replace("index.html");
-    });
-  </script>
-
-  <!-- keep your office.js -->
-  <script src="assets/js/office.js?v=100" defer></script>
+  <script src="assets/js/office.js?v=101" defer></script>
 </body>
 </html>
