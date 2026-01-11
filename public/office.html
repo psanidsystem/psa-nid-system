@@ -68,7 +68,6 @@
       border-radius: 999px;
       cursor:pointer;
     }
-    .logout-btn:hover{ filter: brightness(0.96); }
 
     .wrap{
       max-width: 1400px;
@@ -100,7 +99,6 @@
       color: var(--primary);
       font-size: 26px;
       font-weight: 900;
-      letter-spacing: .3px;
     }
     .center-title p{
       margin: 6px 0 0;
@@ -139,7 +137,6 @@
       align-items:center;
       gap:10px;
     }
-    .btn:hover{ filter: brightness(0.96); }
 
     .split{ display:flex; gap:16px; margin-top:16px; align-items:flex-start; }
 
@@ -208,7 +205,6 @@
       font-weight: 900;
     }
     .muted{ color: var(--muted); font-weight: 800; }
-
     tr.clickable:hover{ background:#eef5ff; }
 
     @media (max-width: 1150px){
@@ -218,7 +214,7 @@
     }
   </style>
 
-  <!-- ✅ AUTH GUARD (Office) -->
+  <!-- AUTH GUARD (Office) -->
   <script>
     (function () {
       const email = localStorage.getItem("email");
@@ -243,7 +239,6 @@
 <body>
   <div class="topbar">
     <div class="topbar-inner">
-
       <div class="brand">
         <div class="logos">
           <img class="logo" src="assets/images/psa.png" alt="PSA Logo">
@@ -256,13 +251,12 @@
       </div>
 
       <div class="right-tools">
-        <div class="user-pill" title="Logged in user">
+        <div class="user-pill">
           <span class="dot"></span>
           <span id="userEmail">—</span>
         </div>
         <button id="logoutBtn" class="logout-btn" type="button">Logout</button>
       </div>
-
     </div>
   </div>
 
@@ -276,7 +270,7 @@
       </div>
 
       <div class="controls">
-        <input id="qInput" class="input" type="text" placeholder="Search TRN / Fullname / Province" />
+        <input id="qInput" class="input" type="text" placeholder="Search TRN / Fullname / Contact / Email / Address / Province" />
         <button id="refreshBtn" class="btn" type="button">
           Refresh
           <span id="refreshSpinner" style="display:none;">...</span>
@@ -284,8 +278,7 @@
       </div>
 
       <div class="split">
-
-        <!-- LEFT UPDATE PANEL -->
+        <!-- UPDATE PANEL -->
         <div class="panel">
           <h3 class="panel-title">Update Record</h3>
 
@@ -340,18 +333,21 @@
           <p id="updateMsg" class="muted" style="margin:10px 0 0;">Select a row to update.</p>
         </div>
 
-        <!-- RIGHT TABLE -->
+        <!-- TABLE -->
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>TRN</th>
                 <th>Fullname</th>
+                <th>Contact No.</th>
+                <th>Email Address</th>
+                <th>Permanent Address</th>
                 <th>Province</th>
               </tr>
             </thead>
             <tbody id="tbody">
-              <tr><td colspan="3" class="muted">Loading...</td></tr>
+              <tr><td colspan="6" class="muted">Loading...</td></tr>
             </tbody>
           </table>
         </div>
@@ -360,6 +356,6 @@
     </section>
   </div>
 
-  <script src="assets/js/office.js?v=200" defer></script>
+  <script src="assets/js/office.js?v=300" defer></script>
 </body>
 </html>
