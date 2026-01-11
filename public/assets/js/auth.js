@@ -132,6 +132,7 @@ function setAdmin(show) {
   const note = document.getElementById("adminNote");
   if (!sel || !note) return;
 
+  // remove existing admin option if present
   [...sel.options].forEach(o => { if (o.value === "admin") sel.remove(o.index); });
 
   isAdminEligible = !!show;
@@ -264,11 +265,11 @@ loginForm && (loginForm.onsubmit = async (e) => {
     localStorage.setItem("role", d.role || "user");
     localStorage.setItem("sessionAt", Date.now().toString());
 
-    // store these if backend returns them
-    if (d.position) localStorage.setItem("position", d.position);
-    if (d.province) localStorage.setItem("province", d.province);
+    // ✅ ALWAYS set (even if empty) to avoid stale values
+    localStorage.setItem("position", d.position || "");
+    localStorage.setItem("province", d.province || "");
 
-    // ✅ FIX: redirect supports office role
+    // ✅ redirect supports office role
     const role = (d.role || "user").toLowerCase();
     if (role === "admin") location.replace("admin.html");
     else if (role === "office") location.replace("office.html");
