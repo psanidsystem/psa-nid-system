@@ -416,57 +416,87 @@ app.post("/api/admin-eligible", async (req, res) => {
 // G = Province         (index 6)
 
 // ✅ FAILED REGISTRATION LIST (FINAL FIX — COLUMN ORDER VERIFIED)
+// ✅ FAILED REGISTRATION LIST (DYNAMIC HEADER MAPPING - NO MORE SHUFFLE)
 app.get("/api/failed-registrations", async (req, res) => {
   try {
     const provinceQ = String(req.query.province || "").trim().toLowerCase();
-
     const sheets = await getClient();
-    const result = await sheets.spreadsheets.values.get({
+
+    // 1) Read header row
+    const headerRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetFailed}!A2:I`,
+      range: `${sheetFailed}!A1:Z1`,
     });
 
-    const rows = result.data.values || [];
+    const headers = (headerRes.data.values?.[0] || []).map(h =>
+      String(h || "").trim().toLowerCase()
+    );
 
+    // Helper: find column index by possible header names
+    const findCol = (candidates) => {
+      for (const name of candidates) {
+        const idx = headers.indexOf(name.toLowerCase());
+        if (idx !== -1) return idx;
+      }
+      return -1;
+    };
+
+    // 2) Detect columns by header names (add more aliases if needed)
+    const idxTRN = findCol(["trn"]);
+    const idxFullname = findCol(["fullname", "full name", "name"]);
+    const idxContact = findCol(["contact no.", "contact", "contact number", "mobile", "mobile no.", "phone"]);
+    const idxEmail = findCol(["email address", "email", "e-mail"]);
+    const idxAddress = findCol(["permanent address", "address"]);
+    const idxProvince = findCol(["province"]);
+
+    // If any critical column missing, return a helpful debug response
+    const missing = [];
+    if (idxTRN === -1) missing.push("TRN");
+    if (idxFullname === -1) missing.push("Fullname");
+    if (idxProvince === -1) missing.push("Province");
+
+    if (missing.length) {
+      return res.status(400).json({
+        success: false,
+        message: `Missing required header(s) in "${sheetFailed}" sheet: ${missing.join(", ")}. Please ensure Row 1 contains these headers.`,
+        detectedHeaders: headers,
+      });
+    }
+
+    // 3) Read data rows
+    const dataRes = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetFailed}!A2:Z`,
+    });
+
+    const rows = dataRes.data.values || [];
+
+    // 4) Map correctly using detected indices
     const records = rows
-      .filter(r => (r[1] || "").trim()) // TRN exists
+      .filter(r => String(r[idxTRN] || "").trim())
       .map(r => ({
-        trn: (r[1] || "").trim(),               // B
-        fullname: (r[2] || "").trim(),          // C
-
-        // ✅ CORRECT mapping based on screenshot
-        permanentAddress: (r[3] || "").trim(),  // D = Address
-        contactNo: (r[4] || "").trim(),         // E = Contact No.
-        emailAddress: (r[5] || "").trim(),      // F = Email
-
-        province: (r[6] || "").trim(),          // G
+        trn: String(r[idxTRN] || "").trim(),
+        fullname: String(r[idxFullname] || "").trim(),
+        contactNo: idxContact !== -1 ? String(r[idxContact] || "").trim() : "",
+        emailAddress: idxEmail !== -1 ? String(r[idxEmail] || "").trim() : "",
+        permanentAddress: idxAddress !== -1 ? String(r[idxAddress] || "").trim() : "",
+        province: String(r[idxProvince] || "").trim(),
       }));
 
     const filtered = provinceQ
-      ? records.filter(r => r.province.toLowerCase() === provinceQ)
-      : records;
-
-    return res.json({ success: true, records: filtered });
-
-  } catch (err) {
-    console.error("FAILED REG ERROR:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to load failed registrations",
-    });
-  }
-});
-
-    const filtered = provinceQ
-      ? records.filter((x) => String(x.province || "").trim().toLowerCase() === provinceQ)
+      ? records.filter(x => String(x.province || "").trim().toLowerCase() === provinceQ)
       : records;
 
     return res.json({ success: true, records: filtered });
   } catch (err) {
     console.error("Error in GET /api/failed-registrations:", err.message || err);
-    return res.status(500).json({ success: false, message: "Error loading failed registrations." });
+    return res.status(500).json({
+      success: false,
+      message: "Error loading failed registrations.",
+    });
   }
 });
+
 
 
 // TRN SEARCH
@@ -576,5 +606,6 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("🔥 Server running on port " + PORT));
+
 
 
