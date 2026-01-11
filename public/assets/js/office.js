@@ -18,47 +18,24 @@ const refreshSpinnerEl = document.getElementById("refreshSpinner");
 
 const tbodyEl = document.getElementById("tbody");
 
-// Left panel (readonly)
+// Left panel elements
 const selTrnEl = document.getElementById("selTrn");
 const selNameEl = document.getElementById("selName");
 const selContactEl = document.getElementById("selContact");
 
-// Left panel inputs
+const updatedBadgeEl = document.getElementById("updatedBadge");
+const updatedWhenEl = document.getElementById("updatedWhen");
+
 const presentAddressEl = document.getElementById("presentAddress");
 const provincePresentEl = document.getElementById("provincePresent");
 const dateContactedEl = document.getElementById("dateContacted");
-const meansOfNotificationEl = document.getElementById("meansOfNotification");
+const meansEl = document.getElementById("meansOfNotification");
 const recaptureStatusEl = document.getElementById("recaptureStatus");
 const recaptureScheduleEl = document.getElementById("recaptureSchedule");
-const provinceRegistrationEl = document.getElementById("provinceRegistration");
-const cityMunicipalityEl = document.getElementById("cityMunicipality");
-const registrationCenterEl = document.getElementById("registrationCenter");
-
-const updateBtnEl = document.getElementById("updateBtn");
-const updateMsgEl = document.getElementById("updateMsg");
-
-function escapeHtml(s) {
-  return (s ?? "").toString()
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function todayISO() {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function setNoBackdate() {
-  const min = todayISO();
-  if (dateContactedEl) dateContactedEl.min = min;
-  if (recaptureScheduleEl) recaptureScheduleEl.min = min;
-}
+const provinceRegEl = document.getElementById("provinceRegistration");
+const cityMunEl = document.getElementById("cityMunicipality");
+const regCenterEl = document.getElementById("registrationCenter");
+const saveBtnEl = document.getElementById("saveBtn");
 
 // ===== Logout =====
 function doLogout() {
@@ -71,104 +48,217 @@ function doLogout() {
 }
 logoutBtnEl && logoutBtnEl.addEventListener("click", doLogout);
 
-// ===== Header info =====
+// ===== Show header info =====
 if (userEmailEl) userEmailEl.textContent = sessionEmail || "—";
-if (provinceTitleEl) provinceTitleEl.textContent = sessionProvince ? `Province of ${sessionProvince}` : "Province of —";
+if (provinceTitleEl) {
+  provinceTitleEl.textContent = sessionProvince ? `Province of ${sessionProvince}` : "Province of —";
+}
 
-setNoBackdate();
-
-// ===== Data cache =====
-let allRows = [];
-let selected = null;
+// ===== Small helpers =====
+function escapeHtml(s) {
+  return (s ?? "").toString()
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
 
 function setCount(n) {
   if (!countTextEl) return;
   countTextEl.textContent = `Showing ${n} record(s)`;
 }
 
-function fillSelect(selectEl, items, placeholder) {
-  if (!selectEl) return;
-  selectEl.innerHTML = "";
+// ===== Cache =====
+let allRows = [];
+let selectedRowNumber = null;
 
-  const opt0 = document.createElement("option");
-  opt0.value = "";
-  opt0.textContent = placeholder;
-  selectEl.appendChild(opt0);
-
-  for (const it of items) {
-    const opt = document.createElement("option");
-    opt.value = it;
-    opt.textContent = it;
-    selectEl.appendChild(opt);
-  }
-}
-
-async function loadDropdowns() {
+// ===== Dropdown loaders =====
+async function loadMeansDropdown() {
+  if (!meansEl) return;
+  meansEl.innerHTML = `<option value="">Select Means...</option>`;
   try {
-    const [a, b] = await Promise.all([
-      fetch(API + "/api/means-notification").then(r => r.json()),
-      fetch(API + "/api/recapture-status-options").then(r => r.json()),
-    ]);
-
-    fillSelect(meansOfNotificationEl, (a?.items || []), "Select Means...");
-    fillSelect(recaptureStatusEl, (b?.items || []), "Select Status...");
+    const r = await fetch(API + "/api/means-notification");
+    const d = await r.json();
+    if (!d.success) return;
+    for (const item of d.items || []) {
+      const opt = document.createElement("option");
+      opt.value = item;
+      opt.textContent = item;
+      meansEl.appendChild(opt);
+    }
   } catch (e) {
-    console.error("loadDropdowns error:", e);
+    console.error("loadMeansDropdown error:", e);
   }
 }
 
-function setSelectedBasic(rec) {
-  selected = rec || null;
-
-  if (selTrnEl) selTrnEl.textContent = selected?.trn || "—";
-  if (selNameEl) selNameEl.textContent = selected?.fullname || "—";
-  if (selContactEl) selContactEl.textContent = selected?.contactNo || "—";
-
-  if (updateMsgEl) updateMsgEl.textContent = selected ? "Loading existing data..." : "Select a row to update.";
+async function loadRecaptureStatusDropdown() {
+  if (!recaptureStatusEl) return;
+  recaptureStatusEl.innerHTML = `<option value="">Select Status...</option>`;
+  try {
+    const r = await fetch(API + "/api/recapture-status-options");
+    const d = await r.json();
+    if (!d.success) return;
+    for (const item of d.items || []) {
+      const opt = document.createElement("option");
+      opt.value = item;
+      opt.textContent = item;
+      recaptureStatusEl.appendChild(opt);
+    }
+  } catch (e) {
+    console.error("loadRecaptureStatusDropdown error:", e);
+  }
 }
 
-async function autofillUpdatePanel(rowNumber) {
-  if (!rowNumber) return;
+// ===== Render table =====
+function renderRows(rows) {
+  if (!tbodyEl) return;
+  tbodyEl.innerHTML = "";
+
+  if (!rows || rows.length === 0) {
+    tbodyEl.innerHTML = `<tr><td colspan="5" class="muted">No records found.</td></tr>`;
+    setCount(0);
+    return;
+  }
+
+  setCount(rows.length);
+
+  for (const r of rows) {
+    const trn = escapeHtml(r.trn || "");
+    const fullname = escapeHtml(r.fullname || "");
+    const contactNo = escapeHtml(r.contactNo || "");
+    const updatedAt = (r.updatedAt || "").trim();
+
+    const updatedTag = updatedAt
+      ? `<span class="tag tag-updated" title="Updated at: ${escapeHtml(updatedAt)}">✅ Updated</span>`
+      : `<span class="tag tag-new">—</span>`;
+
+    const tr = document.createElement("tr");
+    tr.className = "clickable";
+    tr.dataset.rowNumber = String(r.rowNumber);
+
+    tr.innerHTML = `
+      <td>${trn}</td>
+      <td>${fullname}</td>
+      <td>${contactNo}</td>
+      <td>${updatedTag}</td>
+      <td><button class="mini-btn" type="button">Update</button></td>
+    `;
+
+    tr.addEventListener("click", () => selectRow(r.rowNumber));
+    tbodyEl.appendChild(tr);
+  }
+}
+
+function applySearch() {
+  const q = (qInputEl?.value || "").trim().toLowerCase();
+  if (!q) {
+    renderRows(allRows);
+    return;
+  }
+
+  const filtered = allRows.filter((r) => {
+    const hay = [
+      r.trn,
+      r.fullname,
+      r.contactNo,
+      r.province,
+      r.updatedAt || "",
+    ].join(" ").toLowerCase();
+
+    return hay.includes(q);
+  });
+
+  renderRows(filtered);
+}
+
+// ===== Fetch list =====
+async function loadFailedRegistrations() {
+  if (!sessionProvince) {
+    if (tbodyEl) tbodyEl.innerHTML = `<tr><td colspan="5" class="muted">No province found in session. Please login again.</td></tr>`;
+    setCount(0);
+    return;
+  }
+
+  if (refreshBtnEl) refreshBtnEl.classList.add("loading");
+  if (refreshBtnEl) refreshBtnEl.disabled = true;
+  if (refreshSpinnerEl) refreshSpinnerEl.style.display = "inline-block";
+
+  try {
+    const url = API + "/api/failed-registrations?province=" + encodeURIComponent(sessionProvince);
+    const r = await fetch(url);
+    const d = await r.json();
+
+    if (!d.success) {
+      allRows = [];
+      renderRows(allRows);
+      return;
+    }
+
+    allRows = Array.isArray(d.records) ? d.records : [];
+    applySearch();
+  } catch (e) {
+    console.error("loadFailedRegistrations error:", e);
+    allRows = [];
+    renderRows(allRows);
+  } finally {
+    if (refreshBtnEl) refreshBtnEl.classList.remove("loading");
+    if (refreshBtnEl) refreshBtnEl.disabled = false;
+    if (refreshSpinnerEl) refreshSpinnerEl.style.display = "none";
+  }
+}
+
+// ===== Select row => load row details =====
+async function selectRow(rowNumber) {
+  selectedRowNumber = rowNumber;
 
   try {
     const r = await fetch(API + "/api/failed-registration-row?rowNumber=" + encodeURIComponent(rowNumber));
     const d = await r.json();
+    if (!d.success) return;
 
-    if (!d || !d.success || !d.data) {
-      if (updateMsgEl) updateMsgEl.textContent = "Failed to load existing values.";
-      return;
-    }
+    const x = d.data || {};
 
-    const x = d.data;
+    if (selTrnEl) selTrnEl.textContent = x.trn || "—";
+    if (selNameEl) selNameEl.textContent = x.fullname || "—";
+    if (selContactEl) selContactEl.textContent = x.contactNo || "—";
 
-    // ✅ Autofill but editable
+    // Prefill editable fields
     if (presentAddressEl) presentAddressEl.value = x.presentAddress || "";
     if (provincePresentEl) provincePresentEl.value = x.provincePresent || "";
-
-    // If sheet stores MM/DD/YYYY, date input wants YYYY-MM-DD
-    // We'll attempt conversion, else keep empty
-    if (dateContactedEl) dateContactedEl.value = toISODate(x.dateContacted);
-    if (recaptureScheduleEl) recaptureScheduleEl.value = toISODate(x.recaptureSchedule);
-
-    if (meansOfNotificationEl) meansOfNotificationEl.value = x.meansOfNotification || "";
+    if (dateContactedEl) dateContactedEl.value = toISODate(x.dateContacted || "");
+    if (meansEl) meansEl.value = x.meansOfNotification || "";
     if (recaptureStatusEl) recaptureStatusEl.value = x.recaptureStatus || "";
+    if (recaptureScheduleEl) recaptureScheduleEl.value = toISODate(x.recaptureSchedule || "");
+    if (provinceRegEl) provinceRegEl.value = x.provinceRegistration || "";
+    if (cityMunEl) cityMunEl.value = x.cityMunicipality || "";
+    if (regCenterEl) regCenterEl.value = x.registrationCenter || "";
 
-    if (provinceRegistrationEl) provinceRegistrationEl.value = x.provinceRegistration || "";
-    if (cityMunicipalityEl) cityMunicipalityEl.value = x.cityMunicipality || "";
-    if (registrationCenterEl) registrationCenterEl.value = x.registrationCenter || "";
+    // Updated badge on left
+    const updatedAt = (x.updatedAt || "").trim();
+    if (updatedBadgeEl && updatedWhenEl) {
+      if (updatedAt) {
+        updatedBadgeEl.style.display = "flex";
+        updatedWhenEl.textContent = `(Last: ${updatedAt})`;
+      } else {
+        updatedBadgeEl.style.display = "none";
+        updatedWhenEl.textContent = "";
+      }
+    }
 
-    if (updateMsgEl) updateMsgEl.textContent = "Edit fields then click Update.";
   } catch (e) {
-    console.error("autofillUpdatePanel error:", e);
-    if (updateMsgEl) updateMsgEl.textContent = "Error loading existing values.";
+    console.error("selectRow error:", e);
   }
 }
 
+// ===== Date helpers =====
+// Input type="date" needs YYYY-MM-DD.
+// Sheet values might be MM/DD/YYYY or ISO already.
 function toISODate(val) {
   const s = String(val || "").trim();
   if (!s) return "";
 
-  // if already ISO yyyy-mm-dd
+  // if already ISO
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
 
   // try MM/DD/YYYY
@@ -180,132 +270,62 @@ function toISODate(val) {
     return `${yyyy}-${mm}-${dd}`;
   }
 
+  // fallback try Date parse
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
   return "";
 }
 
-function fromISOToMMDDYYYY(iso) {
+// Convert ISO (YYYY-MM-DD) to MM/DD/YYYY for sheet
+function isoToMMDDYYYY(iso) {
   const s = String(iso || "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return "";
   const [yyyy, mm, dd] = s.split("-");
   return `${mm}/${dd}/${yyyy}`;
 }
 
-function renderRows(rows) {
-  if (!tbodyEl) return;
-  tbodyEl.innerHTML = "";
-
-  if (!rows || rows.length === 0) {
-    tbodyEl.innerHTML = `<tr><td colspan="3" class="muted">No records found.</td></tr>`;
-    setCount(0);
-    setSelectedBasic(null);
-    return;
-  }
-
-  setCount(rows.length);
-
-  for (const r of rows) {
-    const tr = document.createElement("tr");
-    tr.className = "clickable";
-    tr.style.cursor = "pointer";
-
-    tr.innerHTML = `
-      <td class="col-trn">${escapeHtml(r.trn)}</td>
-      <td class="col-name">${escapeHtml(r.fullname)}</td>
-      <td class="col-contact">${escapeHtml(r.contactNo)}</td>
-    `;
-
-    tr.addEventListener("click", async () => {
-      [...tbodyEl.querySelectorAll("tr")].forEach(x => x.style.background = "");
-      tr.style.background = "#eef5ff";
-
-      setSelectedBasic(r);
-      await autofillUpdatePanel(r.rowNumber);
-    });
-
-    tbodyEl.appendChild(tr);
-  }
+// Prevent backdate
+function setMinToday(inputEl) {
+  if (!inputEl) return;
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  inputEl.min = `${yyyy}-${mm}-${dd}`;
 }
+setMinToday(dateContactedEl);
+setMinToday(recaptureScheduleEl);
 
-function applySearch() {
-  const q = (qInputEl?.value || "").trim().toLowerCase();
-  if (!q) return renderRows(allRows);
-
-  const filtered = allRows.filter((r) => {
-    const hay = [r.trn, r.fullname, r.contactNo, r.province].join(" ").toLowerCase();
-    return hay.includes(q);
-  });
-
-  renderRows(filtered);
-}
-
-async function loadFailedRegistrations() {
-  if (!sessionProvince) {
-    tbodyEl.innerHTML = `<tr><td colspan="3" class="muted">No province found in session. Please login again.</td></tr>`;
-    setCount(0);
-    setSelectedBasic(null);
-    return;
-  }
-
-  refreshBtnEl.disabled = true;
-  refreshSpinnerEl.style.display = "inline-block";
-
-  try {
-    const url = API + "/api/failed-registrations?province=" + encodeURIComponent(sessionProvince);
-    const r = await fetch(url);
-    const d = await r.json();
-
-    if (!d || !d.success) {
-      allRows = [];
-      renderRows(allRows);
-      return;
-    }
-
-    allRows = Array.isArray(d.records) ? d.records : [];
-    applySearch();
-  } catch (e) {
-    console.error(e);
-    allRows = [];
-    renderRows(allRows);
-  } finally {
-    refreshBtnEl.disabled = false;
-    refreshSpinnerEl.style.display = "none";
-  }
-}
-
-async function submitUpdate() {
-  if (!selected?.rowNumber) {
-    updateMsgEl.textContent = "Please select a record first.";
-    return;
-  }
-
-  // enforce no backdate (in case user manually types)
-  const min = todayISO();
-  if (dateContactedEl.value && dateContactedEl.value < min) {
-    updateMsgEl.textContent = "Date Contacted cannot be backdate.";
-    return;
-  }
-  if (recaptureScheduleEl.value && recaptureScheduleEl.value < min) {
-    updateMsgEl.textContent = "Recapture Schedule cannot be backdate.";
+// ===== Save update =====
+async function saveUpdate() {
+  if (!selectedRowNumber) {
+    alert("Please select a record first.");
     return;
   }
 
   const payload = {
-    rowNumber: selected.rowNumber,
-    presentAddress: presentAddressEl.value || "",
-    provincePresent: provincePresentEl.value || "",
-    dateContacted: fromISOToMMDDYYYY(dateContactedEl.value || ""),
-    meansOfNotification: meansOfNotificationEl.value || "",
-    recaptureStatus: recaptureStatusEl.value || "",
-    recaptureSchedule: fromISOToMMDDYYYY(recaptureScheduleEl.value || ""),
-    provinceRegistration: provinceRegistrationEl.value || "",
-    cityMunicipality: cityMunicipalityEl.value || "",
-    registrationCenter: registrationCenterEl.value || "",
+    rowNumber: selectedRowNumber,
+    presentAddress: presentAddressEl?.value || "",
+    provincePresent: provincePresentEl?.value || "",
+    dateContacted: isoToMMDDYYYY(dateContactedEl?.value || ""),
+    meansOfNotification: meansEl?.value || "",
+    recaptureStatus: recaptureStatusEl?.value || "",
+    recaptureSchedule: isoToMMDDYYYY(recaptureScheduleEl?.value || ""),
+    provinceRegistration: provinceRegEl?.value || "",
+    cityMunicipality: cityMunEl?.value || "",
+    registrationCenter: regCenterEl?.value || "",
   };
 
-  updateBtnEl.disabled = true;
-  updateMsgEl.textContent = "Updating...";
-
   try {
+    saveBtnEl && (saveBtnEl.disabled = true);
+    saveBtnEl && (saveBtnEl.textContent = "Saving...");
+
     const r = await fetch(API + "/api/failed-registration-update", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -313,29 +333,41 @@ async function submitUpdate() {
     });
 
     const d = await r.json();
-    if (!d || !d.success) {
-      updateMsgEl.textContent = d?.message || "Update failed.";
+    if (!d.success) {
+      alert(d.message || "Update failed.");
       return;
     }
 
-    updateMsgEl.textContent = "✅ Updated successfully!";
+    // Update badge immediately
+    if (updatedBadgeEl && updatedWhenEl) {
+      updatedBadgeEl.style.display = "flex";
+      updatedWhenEl.textContent = `(Last: ${d.updatedAt || "Updated"})`;
+    }
+
+    // Refresh list to update Updated tag
     await loadFailedRegistrations();
+
+    alert("✅ Updated successfully!");
   } catch (e) {
-    console.error(e);
-    updateMsgEl.textContent = "Network/server error.";
+    console.error("saveUpdate error:", e);
+    alert("Server error while updating.");
   } finally {
-    updateBtnEl.disabled = false;
+    saveBtnEl && (saveBtnEl.disabled = false);
+    saveBtnEl && (saveBtnEl.textContent = "Save Update");
   }
 }
 
 // ===== Events =====
-refreshBtnEl.addEventListener("click", loadFailedRegistrations);
-qInputEl.addEventListener("input", applySearch);
-updateBtnEl.addEventListener("click", submitUpdate);
+refreshBtnEl && refreshBtnEl.addEventListener("click", loadFailedRegistrations);
+qInputEl && qInputEl.addEventListener("input", applySearch);
+saveBtnEl && saveBtnEl.addEventListener("click", saveUpdate);
 
-// ===== Guard =====
+// ===== Guard fallback =====
 if (sessionRole !== "office") {
   location.replace("user.html");
 } else {
-  loadDropdowns().then(loadFailedRegistrations);
+  // Load dropdowns first then list
+  Promise.all([loadMeansDropdown(), loadRecaptureStatusDropdown()])
+    .then(loadFailedRegistrations)
+    .catch(loadFailedRegistrations);
 }
