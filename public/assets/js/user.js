@@ -4,7 +4,7 @@
   const role = localStorage.getItem("role");
   const sessionAt = Number(localStorage.getItem("sessionAt") || "0");
 
-  // 30 minutes session (adjust if you want)
+  // 30 minutes session
   const MAX_AGE_MS = 30 * 60 * 1000;
 
   if (!email || !role || !sessionAt || Date.now() - sessionAt > MAX_AGE_MS) {
@@ -14,22 +14,22 @@
     location.replace("index.html");
     return;
   }
+
+  if (role !== "user") {
+    location.replace("index.html");
+    return;
+  }
 })();
 
 const API = location.origin;
 
 let record = null;
 
-// ===== Elements (Nav + Sections) =====
-const btnHome = document.getElementById("btnHome");
-const btnSearch = document.getElementById("btnSearch");
-
-const homeSection = document.getElementById("homeSection");
-const searchSection = document.getElementById("searchSection");
+// ===== Elements (Header) =====
+const userEmailEl = document.getElementById("userEmail");
+const logoutLink = document.getElementById("logoutLink");
 
 // ===== Elements (TRN UI) =====
-const userEmailEl = document.getElementById("userEmail");
-
 const trnInputEl = document.getElementById("trnInput");
 const searchBtnEl = document.getElementById("searchBtn");
 const clearBtnEl = document.getElementById("clearBtn");
@@ -47,6 +47,11 @@ const statusSelectEl = document.getElementById("statusSelect");
 const newTrnInputEl = document.getElementById("newTrnInput");
 const dateRecapInputEl = document.getElementById("dateRecapInput");
 const saveBtnEl = document.getElementById("saveBtn");
+
+// Optional spinners (if present in HTML)
+const searchSpinnerEl = document.getElementById("searchSpinner");
+const saveSpinnerEl = document.getElementById("saveSpinner");
+const saveTextEl = document.getElementById("saveText");
 
 // ===== Helpers =====
 function showOk(text) {
@@ -83,25 +88,45 @@ function resetDetails() {
   if (statusSelectEl) statusSelectEl.value = "";
   if (newTrnInputEl) newTrnInputEl.value = "";
   if (dateRecapInputEl) dateRecapInputEl.value = "";
+
+  // Disable save until a record is loaded (better UX)
+  if (saveBtnEl) saveBtnEl.disabled = true;
 }
 
-// ===== Navigation (Home/Search) =====
-function setActive(tab) {
-  if (btnHome) btnHome.classList.toggle("active", tab === "home");
-  if (btnSearch) btnSearch.classList.toggle("active", tab === "search");
-
-  if (homeSection) homeSection.classList.toggle("active", tab === "home");
-  if (searchSection) searchSection.classList.toggle("active", tab === "search");
-
-  if (tab !== "search") hideMsgs();
+function setButtonLoading(btn, spinnerEl, isLoading) {
+  if (!btn) return;
+  if (isLoading) {
+    btn.disabled = true;
+    btn.classList.add("loading");
+    if (spinnerEl) spinnerEl.style.display = "inline-block";
+  } else {
+    btn.disabled = false;
+    btn.classList.remove("loading");
+    if (spinnerEl) spinnerEl.style.display = "none";
+  }
 }
 
-btnHome && btnHome.addEventListener("click", () => setActive("home"));
-btnSearch && btnSearch.addEventListener("click", () => setActive("search"));
+function digitsOnlyValue(v) {
+  return (v || "").toString().replace(/\D/g, "");
+}
+
+function isValidTRN(trn) {
+  return /^\d{29}$/.test(trn);
+}
 
 // ===== Init =====
 if (userEmailEl) userEmailEl.textContent = localStorage.getItem("email") || "";
-setActive("home");
+resetDetails(); // hides detail + disables save
+
+// ===== Logout (optional; if you also handle in HTML, ok ra) =====
+logoutLink &&
+  logoutLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    localStorage.removeItem("email");
+    localStorage.removeItem("role");
+    localStorage.removeItem("sessionAt");
+    location.replace("index.html");
+  });
 
 // ===== Load status options =====
 (async () => {
@@ -124,13 +149,14 @@ async function doSearch() {
   hideMsgs();
   resetDetails();
 
-  const trn = (trnInputEl?.value || "").replace(/\D/g, "");
-  if (!/^\d{29}$/.test(trn)) {
+  const trn = digitsOnlyValue(trnInputEl?.value);
+
+  if (!isValidTRN(trn)) {
     showErr("Invalid TRN. Must be 29 digits.");
     return;
   }
 
-  if (searchBtnEl) searchBtnEl.disabled = true;
+  setButtonLoading(searchBtnEl, searchSpinnerEl, true);
 
   try {
     const r = await fetch(API + "/api/trn-search", {
@@ -160,13 +186,14 @@ async function doSearch() {
     if (newTrnInputEl) newTrnInputEl.value = record.newTrn || "";
     if (dateRecapInputEl) dateRecapInputEl.value = record.isoDateRecapture || "";
 
+    if (saveBtnEl) saveBtnEl.disabled = false; // enable save now
     showOk("TRN found.");
   } catch (e) {
     console.error("trn-search error:", e);
     resetDetails();
     showErr("Server error while searching TRN.");
   } finally {
-    if (searchBtnEl) searchBtnEl.disabled = false;
+    setButtonLoading(searchBtnEl, searchSpinnerEl, false);
   }
 }
 
@@ -186,13 +213,17 @@ async function doSave() {
     rowNumber: record.rowNumber,
     trn: record.trn,
     status: statusSelectEl?.value || "",
-    newTrn: (newTrnInputEl?.value || "").replace(/\D/g, ""),
+    newTrn: digitsOnlyValue(newTrnInputEl?.value),
     dateOfRecapture: dateRecapInputEl?.value || "",
   };
 
   if (!payload.status) return showErr("Status is required.");
+  if (payload.newTrn && !isValidTRN(payload.newTrn)) {
+    return showErr("New TRN must be 29 digits (or leave it blank).");
+  }
 
-  if (saveBtnEl) saveBtnEl.disabled = true;
+  setButtonLoading(saveBtnEl, saveSpinnerEl, true);
+  if (saveTextEl) saveTextEl.textContent = "Saving...";
 
   try {
     const r = await fetch(API + "/api/trn-update", {
@@ -205,11 +236,15 @@ async function doSave() {
     if (!d.success) return showErr(d.message || "Save failed.");
 
     showOk("Saved!");
+
+    // Optional: update displayed values if your API returns updated record
+    // If not, we keep current display.
   } catch (e) {
     console.error("trn-update error:", e);
     showErr("Server error while saving.");
   } finally {
-    if (saveBtnEl) saveBtnEl.disabled = false;
+    setButtonLoading(saveBtnEl, saveSpinnerEl, false);
+    if (saveTextEl) saveTextEl.textContent = "Save";
   }
 }
 
@@ -218,9 +253,21 @@ searchBtnEl && searchBtnEl.addEventListener("click", doSearch);
 clearBtnEl && clearBtnEl.addEventListener("click", doClear);
 saveBtnEl && saveBtnEl.addEventListener("click", doSave);
 
-trnInputEl && trnInputEl.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    doSearch();
-  }
-});
+trnInputEl &&
+  trnInputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      doSearch();
+    }
+  });
+
+// Extra: enforce digits-only while typing (in case HTML helper removed)
+trnInputEl &&
+  trnInputEl.addEventListener("input", () => {
+    trnInputEl.value = digitsOnlyValue(trnInputEl.value).slice(0, 29);
+  });
+
+newTrnInputEl &&
+  newTrnInputEl.addEventListener("input", () => {
+    newTrnInputEl.value = digitsOnlyValue(newTrnInputEl.value).slice(0, 29);
+  });
