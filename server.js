@@ -45,6 +45,8 @@ const auth = new GoogleAuth({
 const spreadsheetId = "1RJ16ZSoYzFgeYUmeXo21PwkWfG07xC_5R8YqMAtys8s";
 
 // Sheets
+const sheetAccounts = "Accounts";
+const sheetAdmin = "Admin";
 const sheetFailed = "Failed Registration";
 const sheetDropdown = "Dropdown";
 
@@ -57,6 +59,240 @@ async function getClient() {
 function uniq(arr) {
   return [...new Set(arr)];
 }
+
+// =============================================================
+// ✅ ACCOUNTS HELPERS (A–M)
+// A Email
+// B Password
+// C Role
+// D Status
+// E CreatedAt
+// F UpdatedAt
+// G LastLogin
+// H FirstName
+// I MiddleName
+// J LastName
+// K Viber
+// L Province
+// M Position
+// =============================================================
+async function ensureAccountsHeader() {
+  const sheets = await getClient();
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${sheetAccounts}!A1:M1`,
+    valueInputOption: "RAW",
+    requestBody: {
+      values: [[
+        "Email", "Password", "Role", "Status",
+        "CreatedAt", "UpdatedAt", "LastLogin",
+        "FirstName", "MiddleName", "LastName",
+        "Viber", "Province", "Position"
+      ]],
+    },
+  });
+}
+
+async function loadAccounts() {
+  const sheets = await getClient();
+  await ensureAccountsHeader();
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${sheetAccounts}!A2:M`,
+  });
+
+  const rows = res.data.values || [];
+  return rows
+    .filter((r) => r[0])
+    .map((r) => ({
+      email: String(r[0] || "").trim(),
+      password: String(r[1] || "").trim(),
+      role: String(r[2] || "user").trim(),
+      status: String(r[3] || "active").trim(),
+      createdAt: String(r[4] || "").trim(),
+      updatedAt: String(r[5] || "").trim(),
+      lastLogin: String(r[6] || "").trim(),
+      firstName: String(r[7] || "").trim(),
+      middleName: String(r[8] || "").trim(),
+      lastName: String(r[9] || "").trim(),
+      viber: String(r[10] || "").trim(),
+      province: String(r[11] || "").trim(),
+      position: String(r[12] || "").trim(),
+    }));
+}
+
+async function saveAccount({
+  email, password, role,
+  firstName, middleName, lastName,
+  viber, province, position
+}) {
+  const sheets = await getClient();
+  await ensureAccountsHeader();
+
+  const now = new Date().toISOString();
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: `${sheetAccounts}!A:M`,
+    valueInputOption: "RAW",
+    requestBody: {
+      values: [[
+        String(email || "").trim(),
+        String(password || "").trim(),
+        String(role || "user").trim(),
+        "active",
+        now,
+        now,
+        "",
+        String(firstName || "").trim(),
+        String(middleName || "").trim(),
+        String(lastName || "").trim(),
+        String(viber || "").trim(),
+        String(province || "").trim(),
+        String(position || "").trim(),
+      ]],
+    },
+  });
+}
+
+async function updateLastLogin(email) {
+  const sheets = await getClient();
+  const accounts = await loadAccounts();
+  const index = accounts.findIndex(a => a.email.toLowerCase() === String(email).toLowerCase());
+  if (index === -1) return;
+
+  const rowNumber = index + 2;
+  const now = new Date().toISOString();
+
+  // F = UpdatedAt, G = LastLogin
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${sheetAccounts}!F${rowNumber}:G${rowNumber}`,
+    valueInputOption: "RAW",
+    requestBody: { values: [[now, now]] },
+  });
+}
+
+// Admin allowed only if exists in Admin sheet (A=FN, B=MN, C=LN, D=Email)
+async function isAuthorizedAdmin(firstName, middleName, lastName, email) {
+  const sheets = await getClient();
+
+  const result = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${sheetAdmin}!A2:D`,
+  });
+
+  const rows = result.data.values || [];
+  const fn = (firstName || "").toLowerCase().trim();
+  const mn = (middleName || "").toLowerCase().trim();
+  const ln = (lastName || "").toLowerCase().trim();
+  const em = (email || "").toLowerCase().trim();
+
+  return rows.some((row) => {
+    const rFn = (row[0] || "").toLowerCase().trim();
+    const rMn = (row[1] || "").toLowerCase().trim();
+    const rLn = (row[2] || "").toLowerCase().trim();
+    const rEm = (row[3] || "").toLowerCase().trim();
+    return rFn === fn && rMn === mn && rLn === ln && rEm === em;
+  });
+}
+
+// =============================================================
+// ✅ AUTH ROUTES
+// =============================================================
+
+// REGISTER
+app.post("/api/register", async (req, res) => {
+  const {
+    email, password, role,
+    firstName, middleName, lastName,
+    viber, province, position
+  } = req.body || {};
+
+  if (!email || !password || !role || !firstName || !lastName || !viber || !province || !position) {
+    return res.json({ success: false, message: "Missing required fields." });
+  }
+
+  try {
+    const accounts = await loadAccounts();
+
+    if (accounts.some(a => a.email.toLowerCase() === String(email).toLowerCase())) {
+      return res.json({ success: false, message: "Email already exists" });
+    }
+
+    if (String(role).toLowerCase() === "admin") {
+      const allowed = await isAuthorizedAdmin(firstName, middleName, lastName, email);
+      if (!allowed) {
+        return res.json({ success: false, message: "Dili ka pwede mo-set og Admin Role (not authorized)." });
+      }
+    }
+
+    await saveAccount({ email, password, role, firstName, middleName, lastName, viber, province, position });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Error in POST /api/register:", err.message || err);
+    return res.status(500).json({ success: false, message: "Server error." });
+  }
+});
+
+// LOGIN ✅ (Fix: route exists again)
+app.post("/api/login", async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) return res.json({ success: false, message: "Missing email or password" });
+
+  try {
+    const accounts = await loadAccounts();
+    const user = accounts.find(a => a.email.toLowerCase() === String(email).toLowerCase());
+
+    if (!user) return res.json({ success: false, message: "Invalid email or password" });
+    if (String(user.password || "").trim() !== String(password).trim()) {
+      return res.json({ success: false, message: "Invalid email or password" });
+    }
+
+    if ((user.status || "").toLowerCase() !== "active") {
+      return res.json({ success: false, message: "Account is disabled." });
+    }
+
+    await updateLastLogin(email);
+
+    return res.json({
+      success: true,
+      role: user.role || "user",
+      province: user.province || "",
+      position: user.position || "",
+    });
+  } catch (err) {
+    console.error("Error in POST /api/login:", err.message || err);
+    return res.status(500).json({ success: false, message: "Server error." });
+  }
+});
+
+// Admin eligible
+app.post("/api/admin-eligible", async (req, res) => {
+  try {
+    const { firstName, middleName, lastName, email } = req.body || {};
+    if (!firstName || !lastName || !email) return res.json({ success: true, eligible: false });
+
+    const eligible = await isAuthorizedAdmin(firstName, middleName, lastName, email);
+    return res.json({ success: true, eligible });
+  } catch (err) {
+    console.error("Error in POST /api/admin-eligible:", err.message || err);
+    return res.status(500).json({ success: false, eligible: false });
+  }
+});
+
+// Admin dashboard list (safe no password)
+app.get("/api/accounts", async (req, res) => {
+  try {
+    const accounts = await loadAccounts();
+    const safe = accounts.map(({ password, ...rest }) => rest);
+    return res.json(safe);
+  } catch (err) {
+    console.error("Error in GET /api/accounts:", err.message || err);
+    return res.status(500).json({ success: false, message: "Error loading accounts." });
+  }
+});
 
 // =============================================================
 // ✅ DROPDOWN OPTIONS
@@ -104,15 +340,14 @@ app.get("/api/recapture-status-options", async (req, res) => {
 // =============================================================
 // ✅ OFFICE LIST
 // Province filter uses COLUMN G (index 6)
-// Columns:
 // A No.
 // B TRN
 // C Fullname
 // D Contact No.
 // E Email Address
 // F Permanent Address
-// G Province   ✅ BASIS
-// H-P are update columns
+// G Province ✅ basis
+// H-P update fields
 // =============================================================
 app.get("/api/failed-registrations", async (req, res) => {
   try {
@@ -150,10 +385,7 @@ app.get("/api/failed-registrations", async (req, res) => {
   }
 });
 
-// =============================================================
-// ✅ GET SINGLE ROW (for autofill on update panel)
-// Reads H-P existing values
-// =============================================================
+// ✅ GET SINGLE ROW (autofill H–P)
 app.get("/api/failed-registration-row", async (req, res) => {
   try {
     const rn = Number(req.query.rowNumber);
@@ -161,7 +393,6 @@ app.get("/api/failed-registration-row", async (req, res) => {
 
     const sheets = await getClient();
 
-    // Read A-P in that row so we can return both left info + right side fields
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${sheetFailed}!A${rn}:P${rn}`,
@@ -176,7 +407,6 @@ app.get("/api/failed-registration-row", async (req, res) => {
       contactNo: String(row[3] || "").trim(), // D
       province: String(row[6] || "").trim(),  // G
 
-      // H-P autofill
       presentAddress: String(row[7] || "").trim(),        // H
       provincePresent: String(row[8] || "").trim(),       // I
       dateContacted: String(row[9] || "").trim(),         // J
@@ -195,9 +425,7 @@ app.get("/api/failed-registration-row", async (req, res) => {
   }
 });
 
-// =============================================================
-// ✅ UPDATE H–P (Present Address..Registration Center)
-// =============================================================
+// ✅ UPDATE H–P
 app.post("/api/failed-registration-update", async (req, res) => {
   try {
     const {
@@ -224,15 +452,15 @@ app.post("/api/failed-registration-update", async (req, res) => {
       valueInputOption: "RAW",
       requestBody: {
         values: [[
-          String(presentAddress || "").trim(),         // H
-          String(provincePresent || "").trim(),        // I
-          String(dateContacted || "").trim(),          // J
-          String(meansOfNotification || "").trim(),    // K
-          String(recaptureStatus || "").trim(),        // L
-          String(recaptureSchedule || "").trim(),      // M
-          String(provinceRegistration || "").trim(),   // N
-          String(cityMunicipality || "").trim(),       // O
-          String(registrationCenter || "").trim(),     // P
+          String(presentAddress || "").trim(),
+          String(provincePresent || "").trim(),
+          String(dateContacted || "").trim(),
+          String(meansOfNotification || "").trim(),
+          String(recaptureStatus || "").trim(),
+          String(recaptureSchedule || "").trim(),
+          String(provinceRegistration || "").trim(),
+          String(cityMunicipality || "").trim(),
+          String(registrationCenter || "").trim(),
         ]],
       },
     });
