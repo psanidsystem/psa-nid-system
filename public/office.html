@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PSA • Office Portal</title>
-
   <style>
     :root{
       --primary:#0033a0; --primary2:#0056d6;
@@ -12,6 +11,8 @@
       --muted:#6b7280; --border:#e5e7eb;
       --shadow: 0 10px 25px rgba(0,0,0,0.08);
       --radius: 14px;
+      --okbg:#eaf7ef; --okbd:#bfe7cb; --ok:#0f5132;
+      --errbg:#fdecec; --errbd:#f2b8b8; --err:#842029;
     }
     *{ box-sizing:border-box; }
     body{ margin:0; font-family: Arial, sans-serif; background: var(--bg); color: var(--text); }
@@ -19,109 +20,234 @@
     .topbar{
       position: sticky; top:0; z-index: 10;
       background: linear-gradient(90deg, var(--primary), var(--primary2));
-      color:#fff; padding: 12px 18px;
+      color:#fff; padding: 14px 18px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.18);
     }
     .topbar-inner{
       max-width: 1400px; margin: 0 auto;
-      display:flex; align-items:center; justify-content: space-between;
+      display:flex; align-items:center; justify-content: space-between; gap: 14px;
+    }
+    .brand-text{ display:flex; flex-direction:column; gap:2px; }
+    .brand-text h1{ margin:0; font-size: 18px; font-weight: 800; }
+    .brand-text p{ margin:0; font-size: 13px; opacity:.9; font-weight: 700; }
+
+    .right-tools{
+      display:flex; align-items:center; gap:10px;
     }
 
     .user-pill{
       display:flex; align-items:center; gap:10px;
       background: rgba(255,255,255,0.14);
-      padding: 8px 12px; border-radius: 999px; font-size: 12px;
+      border: 1px solid rgba(255,255,255,0.22);
+      padding: 8px 12px; border-radius: 999px; font-size: 13px;
+      white-space: nowrap;
+      font-weight: 800;
     }
     .user-pill .dot{
       height:8px; width:8px; border-radius:50%; background:#22c55e;
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.22);
     }
 
-    .container{
-      max-width: 1400px;
-      margin: 20px auto;
-      padding: 0 14px;
+    .logout-btn{
+      border: 1px solid rgba(255,255,255,0.32);
+      background: rgba(255,255,255,0.12);
+      color:#fff;
+      font-weight: 900;
+      padding: 8px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .logout-btn:hover{ background: rgba(255,255,255,0.18); }
+
+    .layout{
+      max-width: 1400px; margin: 22px auto; padding: 0 14px;
+      display:block;
     }
 
     .card{
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
+      border-radius: 18px;
       box-shadow: var(--shadow);
-      padding: 16px;
+      padding: 22px;
+    }
+
+    .title-row{
+      display:flex;
+      align-items:flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .title-row h2{
+      margin:0;
+      font-size: 30px;
+      letter-spacing: .2px;
+      color:#0f172a;
+    }
+
+    .center-title{
+      width:100%;
+      text-align:center;
+      margin-top: 10px;
+    }
+    .center-title h3{
+      margin: 0;
+      color: var(--primary);
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: .3px;
+    }
+    .center-title p{
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-weight: 800;
     }
 
     .controls{
-      display:flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;
+      display:flex;
+      gap: 12px;
+      align-items:center;
+      margin-top: 18px;
+      flex-wrap: wrap;
     }
-
     .input{
-      flex:1; min-width:260px;
+      flex: 1;
+      min-width: 280px;
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px 12px;
+      border-radius: 999px;
+      padding: 12px 16px;
+      font-size: 14px;
+      outline:none;
+      background:#fff;
+    }
+    .input:focus{
+      border-color: rgba(0,51,160,0.35);
+      box-shadow: 0 0 0 3px rgba(0,51,160,0.12);
     }
 
     .btn{
-      border:none; border-radius: 12px;
-      padding: 10px 14px;
+      border: none;
+      border-radius: 999px;
+      padding: 12px 18px;
       background: var(--primary);
-      color:#fff; font-weight: 800;
-      cursor:pointer;
+      color: white;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 6px 14px rgba(0,51,160,0.22);
+      display:inline-flex; align-items:center; gap:10px;
     }
+    .btn:disabled{ opacity:.65; cursor:not-allowed; box-shadow:none; }
+    .btn:hover{ filter: brightness(0.97); }
+
+    .spinner{
+      width:16px; height:16px; border-radius:50%;
+      border:2px solid rgba(255,255,255,0.55);
+      border-top-color:#fff;
+      animation: spin 0.8s linear infinite;
+      display:none;
+    }
+    .btn.loading .spinner{ display:inline-block; }
+    @keyframes spin{ to { transform: rotate(360deg); } }
 
     .table-wrap{
-      overflow:auto; margin-top: 14px;
-      border-radius: 12px; border:1px solid var(--border);
+      overflow:auto;
+      margin-top: 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
     }
-
-    table{ width:100%; border-collapse: collapse; background:#fff; }
-    th, td{ padding: 10px 12px; border-bottom:1px solid var(--border); font-size: 13px; }
-    th{ background:#f3f7ff; text-align:left; }
-
-    .province-title{
-      text-align:center;
-      font-size: 20px;
-      font-weight: 900;
-      color: var(--primary);
-      margin: 8px 0 6px;
-      letter-spacing: .5px;
+    table{
+      width:100%;
+      border-collapse: collapse;
+      min-width: 1100px;
+      background:#fff;
     }
-
-    .subtext{
-      text-align:center;
-      color: var(--muted);
-      margin: 0 0 10px;
+    th, td{
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
       font-size: 13px;
-      font-weight: 700;
+    }
+    th{
+      background: #f3f7ff;
+      color:#0f172a;
+      text-align:left;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      font-weight: 900;
+    }
+
+    .muted{
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    @media (max-width: 950px){
+      .input{ min-width: 100%; }
     }
   </style>
+
+  <!-- ✅ AUTH GUARD -->
+  <script>
+    (function () {
+      const email = localStorage.getItem("email");
+      const role = localStorage.getItem("role");
+      const sessionAt = Number(localStorage.getItem("sessionAt") || "0");
+
+      const MAX_AGE_MS = 30 * 60 * 1000; // 30 mins
+
+      if (!email || !role || !sessionAt || (Date.now() - sessionAt) > MAX_AGE_MS) {
+        localStorage.clear();
+        location.replace("index.html");
+        return;
+      }
+
+      // only office role
+      if ((role || "").toLowerCase() !== "office") {
+        location.replace("user.html");
+        return;
+      }
+    })();
+  </script>
 </head>
 
 <body>
   <div class="topbar">
     <div class="topbar-inner">
-      <div>
-        <strong>PSA • National ID System</strong><br>
-        <small>Office Portal</small>
+      <div class="brand-text">
+        <h1>PSA • National ID System</h1>
+        <p>Office Portal</p>
       </div>
 
-      <div class="user-pill">
-        <span class="dot"></span>
-        <span id="userEmail">user@example.gov.ph</span>
+      <div class="right-tools">
+        <div class="user-pill" title="Logged in user">
+          <span class="dot"></span>
+          <span id="userEmail">user@example.gov.ph</span>
+        </div>
+
+        <button class="logout-btn" id="logoutBtn" type="button">Logout</button>
       </div>
     </div>
   </div>
 
-  <div class="container">
-    <div class="card">
-      <h2 style="margin:0;">Failed Registration List</h2>
+  <div class="layout">
+    <section class="card">
+      <div class="title-row">
+        <h2>Failed Registration List</h2>
+      </div>
 
-      <div id="provinceTitle" class="province-title">Province of —</div>
-      <div id="subText" class="subtext">Loading...</div>
+      <div class="center-title">
+        <h3 id="provinceTitle">Province of —</h3>
+        <p id="countText" class="muted">Showing 0 record(s)</p>
+      </div>
 
       <div class="controls">
-        <input id="qInput" class="input" type="text"
-          placeholder="Search TRN / Fullname / Address / Province" />
-        <button id="refreshBtn" class="btn" type="button">Refresh</button>
+        <input id="qInput" class="input" type="text" placeholder="Search TRN / Fullname / Address / Province" />
+        <button id="refreshBtn" class="btn" type="button">
+          <span class="spinner" id="refreshSpinner"></span>
+          <span>Refresh</span>
+        </button>
       </div>
 
       <div class="table-wrap">
@@ -137,14 +263,13 @@
             </tr>
           </thead>
           <tbody id="tbody">
-            <tr><td colspan="6">Loading...</td></tr>
+            <tr><td colspan="6" class="muted">Loading...</td></tr>
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
   </div>
 
-  <!-- IMPORTANT: bump version to avoid cache -->
-  <script src="assets/js/office.js?v=999" defer></script>
+  <script src="assets/js/office.js?v=10"></script>
 </body>
 </html>
