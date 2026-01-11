@@ -62,9 +62,7 @@ registerTab && (registerTab.onclick = async () => {
   await loadProvinces();
   await loadPositions();
 
-  // ensure role options correct at start
   updateRoleOptions();
-
   checkAdminEligibility();
 });
 
@@ -134,7 +132,6 @@ function setAdmin(show) {
   const note = document.getElementById("adminNote");
   if (!sel || !note) return;
 
-  // remove existing admin option if present
   [...sel.options].forEach(o => { if (o.value === "admin") sel.remove(o.index); });
 
   isAdminEligible = !!show;
@@ -148,7 +145,6 @@ function setAdmin(show) {
     note.className = "note bad";
   }
 
-  // after admin eligibility changes, re-apply office/user role rules
   updateRoleOptions();
 }
 
@@ -210,33 +206,21 @@ function updateRoleOptions() {
 
   const pos = normalize(regPosition?.value);
 
-  // Always keep placeholder
-  // Ensure base user option exists (we might remove later)
   ensureOption(regRole, "user", "User");
 
-  // If office position selected => role must be office (auto)
   if (pos && isOfficePosition(pos)) {
-    // remove user option (force office/admin)
     removeOption(regRole, "user");
-
-    // ensure office option exists
     ensureOption(regRole, "office", "Office");
 
-    // if admin eligible, admin already added by setAdmin()
-    // auto-select office if current selection is empty/user
     if (!regRole.value || regRole.value === "user") {
       regRole.value = "office";
     }
   } else {
-    // not office position => allow normal user
     removeOption(regRole, "office");
     ensureOption(regRole, "user", "User");
 
-    // if current selected was office, reset
     if (regRole.value === "office") regRole.value = "user";
   }
-
-  // admin stays only if eligible (setAdmin manages adding/removing it)
 }
 
 regPosition?.addEventListener("change", () => {
@@ -280,12 +264,15 @@ loginForm && (loginForm.onsubmit = async (e) => {
     localStorage.setItem("role", d.role || "user");
     localStorage.setItem("sessionAt", Date.now().toString());
 
-    // optional: store these if backend returns them
+    // store these if backend returns them
     if (d.position) localStorage.setItem("position", d.position);
     if (d.province) localStorage.setItem("province", d.province);
 
-    // redirect: admin -> admin, else -> user (office routing handled elsewhere by your request)
-    location.href = (d.role === "admin") ? "admin.html" : "user.html";
+    // ✅ FIX: redirect supports office role
+    const role = (d.role || "user").toLowerCase();
+    if (role === "admin") location.replace("admin.html");
+    else if (role === "office") location.replace("office.html");
+    else location.replace("user.html");
   } catch (err) {
     console.error(err);
     showMsg(loginMsg, "Server error. Please try again.", "error");
@@ -349,8 +336,6 @@ registerForm && (registerForm.onsubmit = async (e) => {
     showMsg(regMsg, "Account created successfully! You can now login.", "success");
     registerForm.reset();
     setAdmin(false);
-
-    // after reset, restore role options to default state
     updateRoleOptions();
   } catch (e2) {
     console.error(e2);
