@@ -1,5 +1,25 @@
 const API = location.origin;
 
+// =======================
+// CONFIG: office positions => role must be "office"
+// =======================
+const OFFICE_POSITIONS = new Set([
+  "Registration Officer III",
+  "Registration Officer II",
+  "Information Officer I",
+]);
+
+function normalize(v) {
+  return (v || "").toString().trim();
+}
+
+function isOfficePosition(pos) {
+  return OFFICE_POSITIONS.has(normalize(pos));
+}
+
+// =======================
+// Elements
+// =======================
 const loginTab = document.getElementById("loginTab");
 const registerTab = document.getElementById("registerTab");
 const loginForm = document.getElementById("loginForm");
@@ -8,37 +28,45 @@ const loginMsg = document.getElementById("loginMsg");
 const regMsg = document.getElementById("regMsg");
 
 function showMsg(el, text, type) {
-  el.textContent = text;
-  el.className = "msg " + type;
+  if (!el) return;
+  el.textContent = text || "";
+  el.className = "msg " + (type || "");
   el.classList.remove("hidden");
 }
 function hideMsg(el) {
+  if (!el) return;
   el.classList.add("hidden");
   el.textContent = "";
 }
 
+// =======================
 // Tabs
-loginTab.onclick = () => {
+// =======================
+loginTab && (loginTab.onclick = () => {
   loginTab.classList.add("active");
-  registerTab.classList.remove("active");
-  loginForm.style.display = "block";
-  registerForm.style.display = "none";
+  registerTab?.classList.remove("active");
+  if (loginForm) loginForm.style.display = "block";
+  if (registerForm) registerForm.style.display = "none";
   hideMsg(loginMsg);
   hideMsg(regMsg);
-};
+});
 
-registerTab.onclick = async () => {
+registerTab && (registerTab.onclick = async () => {
   registerTab.classList.add("active");
-  loginTab.classList.remove("active");
-  registerForm.style.display = "block";
-  loginForm.style.display = "none";
+  loginTab?.classList.remove("active");
+  if (registerForm) registerForm.style.display = "block";
+  if (loginForm) loginForm.style.display = "none";
   hideMsg(loginMsg);
   hideMsg(regMsg);
 
   await loadProvinces();
   await loadPositions();
+
+  // ensure role options correct at start
+  updateRoleOptions();
+
   checkAdminEligibility();
-};
+});
 
 // =======================
 // VIBER INPUT (09 + 11 DIGITS) - NO maxlength (spaces won't break)
@@ -52,6 +80,8 @@ function formatViber(d) {
 }
 
 function normalizeViber() {
+  if (!regViber) return;
+
   let d = regViber.value.replace(/\D/g, "");
   if (d.startsWith("9")) d = "0" + d;
 
@@ -65,12 +95,15 @@ function normalizeViber() {
   regViber.classList.toggle("invalid", !(d.length === 11 && /^09\d{9}$/.test(d)));
 }
 
-regViber.addEventListener("input", normalizeViber);
-regViber.addEventListener("blur", normalizeViber);
+regViber?.addEventListener("input", normalizeViber);
+regViber?.addEventListener("blur", normalizeViber);
 
+// =======================
 // Dropdowns
+// =======================
 async function loadProvinces() {
   const sel = document.getElementById("regProvince");
+  if (!sel) return;
   sel.innerHTML = `<option value="">-- Select Province --</option>`;
   const r = await fetch(API + "/api/provinces");
   const d = await r.json();
@@ -79,23 +112,32 @@ async function loadProvinces() {
 
 async function loadPositions() {
   const sel = document.getElementById("regPosition");
+  if (!sel) return;
   sel.innerHTML = `<option value="">-- Select Position --</option>`;
   const r = await fetch(API + "/api/positions");
   const d = await r.json();
   (d.positions || []).forEach(p => sel.innerHTML += `<option value="${p}">${p}</option>`);
 }
 
+// =======================
 // Admin eligibility
+// =======================
 const regFirstName = document.getElementById("regFirstName");
 const regMiddleName = document.getElementById("regMiddleName");
 const regLastName = document.getElementById("regLastName");
 const regEmail = document.getElementById("regEmail");
 
+let isAdminEligible = false;
+
 function setAdmin(show) {
   const sel = document.getElementById("regRole");
   const note = document.getElementById("adminNote");
+  if (!sel || !note) return;
 
+  // remove existing admin option if present
   [...sel.options].forEach(o => { if (o.value === "admin") sel.remove(o.index); });
+
+  isAdminEligible = !!show;
 
   if (show) {
     sel.innerHTML += `<option value="admin">Admin</option>`;
@@ -105,40 +147,113 @@ function setAdmin(show) {
     note.textContent = "Admin role requires authorization.";
     note.className = "note bad";
   }
+
+  // after admin eligibility changes, re-apply office/user role rules
+  updateRoleOptions();
 }
 
 async function checkAdminEligibility() {
   const body = {
-    firstName: regFirstName.value.trim(),
-    middleName: regMiddleName.value.trim(),
-    lastName: regLastName.value.trim(),
-    email: regEmail.value.trim(),
+    firstName: normalize(regFirstName?.value),
+    middleName: normalize(regMiddleName?.value),
+    lastName: normalize(regLastName?.value),
+    email: normalize(regEmail?.value),
   };
 
   if (!body.firstName || !body.lastName || !body.email) return setAdmin(false);
 
-  const r = await fetch(API + "/api/admin-eligible", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const d = await r.json();
-  setAdmin(!!d.eligible);
+  try {
+    const r = await fetch(API + "/api/admin-eligible", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    setAdmin(!!d.eligible);
+  } catch (e) {
+    console.error("admin-eligible error:", e);
+    setAdmin(false);
+  }
 }
 
 ["regFirstName", "regMiddleName", "regLastName", "regEmail"].forEach(id => {
   document.getElementById(id)?.addEventListener("input", checkAdminEligibility);
 });
 
-// Login + Loading state
+// =======================
+// Role enforcement based on Position
+// =======================
+const regRole = document.getElementById("regRole");
+const regProvince = document.getElementById("regProvince");
+const regPosition = document.getElementById("regPosition");
+
+function ensureOption(selectEl, value, label) {
+  if (!selectEl) return;
+  const exists = [...selectEl.options].some(o => o.value === value);
+  if (!exists) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = label || value;
+    selectEl.appendChild(opt);
+  }
+}
+
+function removeOption(selectEl, value) {
+  if (!selectEl) return;
+  [...selectEl.options].forEach(o => {
+    if (o.value === value) selectEl.remove(o.index);
+  });
+}
+
+function updateRoleOptions() {
+  if (!regRole) return;
+
+  const pos = normalize(regPosition?.value);
+
+  // Always keep placeholder
+  // Ensure base user option exists (we might remove later)
+  ensureOption(regRole, "user", "User");
+
+  // If office position selected => role must be office (auto)
+  if (pos && isOfficePosition(pos)) {
+    // remove user option (force office/admin)
+    removeOption(regRole, "user");
+
+    // ensure office option exists
+    ensureOption(regRole, "office", "Office");
+
+    // if admin eligible, admin already added by setAdmin()
+    // auto-select office if current selection is empty/user
+    if (!regRole.value || regRole.value === "user") {
+      regRole.value = "office";
+    }
+  } else {
+    // not office position => allow normal user
+    removeOption(regRole, "office");
+    ensureOption(regRole, "user", "User");
+
+    // if current selected was office, reset
+    if (regRole.value === "office") regRole.value = "user";
+  }
+
+  // admin stays only if eligible (setAdmin manages adding/removing it)
+}
+
+regPosition?.addEventListener("change", () => {
+  updateRoleOptions();
+  hideMsg(regMsg);
+});
+
+// =======================
+// LOGIN + Loading state
+// =======================
 const loginEmail = document.getElementById("loginEmail");
 const loginPassword = document.getElementById("loginPassword");
 
-// ✅ optional (works even if you don't add spinner HTML)
-const loginBtn = loginForm.querySelector("button[type='submit']");
+const loginBtn = loginForm?.querySelector("button[type='submit']");
 const loginBtnOrig = loginBtn ? loginBtn.textContent : "";
 
-loginForm.onsubmit = async (e) => {
+loginForm && (loginForm.onsubmit = async (e) => {
   e.preventDefault();
   hideMsg(loginMsg);
 
@@ -148,20 +263,28 @@ loginForm.onsubmit = async (e) => {
   }
 
   try {
+    const email = normalize(loginEmail?.value).toLowerCase();
+    const password = loginPassword?.value || "";
+
     const r = await fetch(API + "/api/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: loginEmail.value.trim(), password: loginPassword.value }),
+      body: JSON.stringify({ email, password }),
     });
 
     const d = await r.json();
     if (!d.success) return showMsg(loginMsg, d.message, "error");
 
     // ✅ session keys used by guards
-    localStorage.setItem("email", loginEmail.value.trim());
+    localStorage.setItem("email", email);
     localStorage.setItem("role", d.role || "user");
-    localStorage.setItem("sessionAt", Date.now().toString()); // session timestamp
+    localStorage.setItem("sessionAt", Date.now().toString());
 
+    // optional: store these if backend returns them
+    if (d.position) localStorage.setItem("position", d.position);
+    if (d.province) localStorage.setItem("province", d.province);
+
+    // redirect: admin -> admin, else -> user (office routing handled elsewhere by your request)
     location.href = (d.role === "admin") ? "admin.html" : "user.html";
   } catch (err) {
     console.error(err);
@@ -172,49 +295,65 @@ loginForm.onsubmit = async (e) => {
       loginBtn.textContent = loginBtnOrig || "Login";
     }
   }
-};
+});
 
-// Register
+// =======================
+// REGISTER
+// =======================
 const regPassword = document.getElementById("regPassword");
 const regConfirm = document.getElementById("regConfirm");
-const regRole = document.getElementById("regRole");
-const regProvince = document.getElementById("regProvince");
-const regPosition = document.getElementById("regPosition");
 
-registerForm.onsubmit = async (e) => {
+registerForm && (registerForm.onsubmit = async (e) => {
   e.preventDefault();
   hideMsg(regMsg);
 
-  const viber = regViber.value.replace(/\D/g, "");
+  const viber = (regViber?.value || "").replace(/\D/g, "");
   if (!/^09\d{9}$/.test(viber)) return showMsg(regMsg, "Invalid Viber number.", "error");
 
-  if (regPassword.value !== regConfirm.value) return showMsg(regMsg, "Passwords do not match.", "error");
-  if (!regPosition.value) return showMsg(regMsg, "Please select Position.", "error");
-  if (!regProvince.value) return showMsg(regMsg, "Please select Province.", "error");
-  if (!regRole.value) return showMsg(regMsg, "Please select Role.", "error");
+  if ((regPassword?.value || "") !== (regConfirm?.value || "")) {
+    return showMsg(regMsg, "Passwords do not match.", "error");
+  }
+
+  if (!normalize(regPosition?.value)) return showMsg(regMsg, "Please select Position.", "error");
+  if (!normalize(regProvince?.value)) return showMsg(regMsg, "Please select Province.", "error");
+  if (!normalize(regRole?.value)) return showMsg(regMsg, "Please select Role.", "error");
+
+  // ✅ enforce office role if office position
+  const pos = normalize(regPosition.value);
+  if (isOfficePosition(pos) && regRole.value !== "office" && regRole.value !== "admin") {
+    return showMsg(regMsg, "Selected position requires Office role.", "error");
+  }
 
   const body = {
-    email: regEmail.value.trim(),
+    email: normalize(regEmail?.value).toLowerCase(),
     password: regPassword.value,
     role: regRole.value,
-    firstName: regFirstName.value.trim(),
-    middleName: regMiddleName.value.trim(),
-    lastName: regLastName.value.trim(),
+    firstName: normalize(regFirstName?.value),
+    middleName: normalize(regMiddleName?.value),
+    lastName: normalize(regLastName?.value),
     viber,
     position: regPosition.value,
     province: regProvince.value,
   };
 
-  const r = await fetch(API + "/api/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  try {
+    const r = await fetch(API + "/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
 
-  const d = await r.json();
-  if (!d.success) return showMsg(regMsg, d.message, "error");
+    const d = await r.json();
+    if (!d.success) return showMsg(regMsg, d.message, "error");
 
-  showMsg(regMsg, "Account created successfully! You can now login.", "success");
-  registerForm.reset();
-  setAdmin(false);
-};
+    showMsg(regMsg, "Account created successfully! You can now login.", "success");
+    registerForm.reset();
+    setAdmin(false);
+
+    // after reset, restore role options to default state
+    updateRoleOptions();
+  } catch (e2) {
+    console.error(e2);
+    showMsg(regMsg, "Server error. Please try again.", "error");
+  }
+});
