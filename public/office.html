@@ -13,73 +13,41 @@
       --shadow: 0 10px 25px rgba(0,0,0,0.08);
       --radius: 18px;
     }
-
     *{ box-sizing:border-box; }
     body{ margin:0; font-family: Arial, sans-serif; background: var(--bg); color: var(--text); }
 
-    /* Topbar */
     .topbar{
-      position: sticky;
-      top:0;
-      z-index: 10;
+      position: sticky; top:0; z-index: 10;
       background: linear-gradient(90deg, var(--primary), var(--primary2));
-      color:#fff;
-      padding: 14px 18px;
+      color:#fff; padding: 14px 18px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.18);
     }
-
     .topbar-inner{
-      max-width: 1400px;
-      margin: 0 auto;
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
+      max-width: 1400px; margin: 0 auto;
+      display:flex; align-items:center; justify-content: space-between;
       gap: 14px;
     }
 
     .brand{
-      display:flex;
-      align-items:center;
-      gap: 12px;
+      display:flex; align-items:center; gap: 12px;
+      min-width: 280px;
     }
-
-    .logos{
-      display:flex;
-      align-items:center;
-      gap: 10px;
-    }
+    .logos{ display:flex; align-items:center; gap: 10px; }
     .logo{
-      height: 38px;
-      width: 38px;
+      height: 38px; width: 38px;
       border-radius: 50%;
       background:#fff;
       padding: 4px;
       object-fit: contain;
     }
 
-    .brand-text h1{
-      margin:0;
-      font-size: 18px;
-      font-weight: 900;
-      letter-spacing: .2px;
-    }
-    .brand-text p{
-      margin:2px 0 0;
-      font-size: 13px;
-      opacity: 0.95;
-      font-weight: 800;
-    }
+    .brand-text h1{ margin:0; font-size: 18px; font-weight: 900; }
+    .brand-text p{ margin:2px 0 0; font-size: 13px; opacity: .95; font-weight: 800; }
 
-    .right-tools{
-      display:flex;
-      align-items:center;
-      gap: 10px;
-    }
+    .right-tools{ display:flex; align-items:center; gap: 10px; }
 
     .user-pill{
-      display:flex;
-      align-items:center;
-      gap:10px;
+      display:flex; align-items:center; gap:10px;
       background: rgba(255,255,255,0.14);
       border: 1px solid rgba(255,255,255,0.22);
       padding: 8px 12px;
@@ -88,35 +56,18 @@
       white-space: nowrap;
       font-weight: 800;
     }
-
     .user-pill .dot{
-      height:8px; width:8px;
-      border-radius:50%;
+      height:8px; width:8px; border-radius:50%;
       background:#22c55e;
       box-shadow: 0 0 0 3px rgba(34,197,94,0.22);
     }
 
-    .logout-btn{
-      border: 1px solid rgba(255,255,255,0.30);
-      background: rgba(255,255,255,0.14);
-      color:#fff;
-      font-weight: 900;
-      padding: 8px 14px;
-      border-radius: 999px;
-      cursor:pointer;
-    }
-    .logout-btn:hover{
-      background: rgba(255,255,255,0.18);
-    }
-
-    /* Page wrapper */
     .wrap{
       max-width: 1400px;
       margin: 22px auto;
       padding: 0 14px;
     }
 
-    /* Card */
     .card{
       background: var(--card);
       border: 1px solid var(--border);
@@ -132,7 +83,6 @@
       color:#0f172a;
     }
 
-    /* Center title (Province of Cebu) */
     .center-title{
       text-align:center;
       margin-top: 14px;
@@ -151,7 +101,6 @@
       font-size: 13px;
     }
 
-    /* Controls row */
     .controls{
       display:flex;
       gap: 12px;
@@ -182,10 +131,7 @@
       align-items:center;
       gap:10px;
     }
-    .btn:hover{ filter: brightness(0.97); }
-    .btn:disabled{ opacity:.65; cursor:not-allowed; box-shadow:none; }
 
-    /* Table */
     .table-wrap{
       overflow:auto;
       margin-top: 14px;
@@ -213,10 +159,7 @@
       z-index: 1;
       font-weight: 900;
     }
-    .muted{
-      color: var(--muted);
-      font-weight: 800;
-    }
+    .muted{ color: var(--muted); font-weight: 800; }
 
     @media (max-width: 950px){
       .input{ min-width: 100%; }
@@ -246,15 +189,14 @@
 </head>
 
 <body>
-  <!-- Topbar -->
   <div class="topbar">
     <div class="topbar-inner">
 
       <div class="brand">
         <div class="logos">
-          <!-- ✅ Logo balik -->
-          <img class="logo" src="assets/images/psa.png" alt="PSA Logo">
-          <img class="logo" src="assets/images/philsys.png" alt="PhilSys Logo">
+          <!-- ✅ ABSOLUTE PATH para sure -->
+          <img class="logo" src="/assets/images/psa.png" alt="PSA Logo" onerror="this.style.display='none'">
+          <img class="logo" src="/assets/images/philsys.png" alt="PhilSys Logo" onerror="this.style.display='none'">
         </div>
         <div class="brand-text">
           <h1>PSA • National ID System</h1>
@@ -268,14 +210,24 @@
           <span id="userEmail">user@example.gov.ph</span>
         </div>
 
-        <!-- ✅ Logout -->
-        <button id="logoutBtn" class="logout-btn" type="button">Logout</button>
+        <!-- ✅ Logout (INLINE STYLE para mugawas gyud) -->
+        <button id="logoutBtn" type="button"
+          style="
+            border: 1px solid rgba(255,255,255,0.35);
+            background: rgba(255,255,255,0.14);
+            color:#fff;
+            font-weight: 900;
+            padding: 8px 14px;
+            border-radius: 999px;
+            cursor:pointer;
+          ">
+          Logout
+        </button>
       </div>
 
     </div>
   </div>
 
-  <!-- Content -->
   <div class="wrap">
     <section class="card">
       <h2>Failed Registration List</h2>
@@ -328,6 +280,6 @@
   </script>
 
   <!-- keep your existing office.js -->
-  <script src="assets/js/office.js?v=11"></script>
+  <script src="/assets/js/office.js?v=99"></script>
 </body>
 </html>
