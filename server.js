@@ -3,9 +3,13 @@
 // - Google Sheets backend
 // - Accounts sheet columns A–M include Province + Position
 // - Login returns role + province + position
-// - Office module: Failed Registration list + update panel
-// - Updated badge BASED ONLY on Column Q timestamp (UpdatedAt marker)
-// - DOES NOT use Present Address / Province (Present) for updated detection
+// - Office list uses Failed Registration sheet
+// - Province filter uses COLUMN G (index 6)
+// - Office "Updated" indicator uses J–P only (Date Contacted..Registration Center)
+// - Dropdown options:
+//    Means of Notification = Dropdown!A2:A
+//    Recapture Status      = Dropdown!E2:E
+// - Keeps USER TRN search/update routes (TRN Search & Q–S update)
 
 const express = require("express");
 const cors = require("cors");
@@ -55,6 +59,7 @@ const spreadsheetId = "1RJ16ZSoYzFgeYUmeXo21PwkWfG07xC_5R8YqMAtys8s";
 
 // Sheets
 const sheetAccounts = "Accounts";
+const sheetLogs = "Logs";
 const sheetAdmin = "Admin";
 const sheetDropdown = "Dropdown";
 const sheetFailed = "Failed Registration";
@@ -69,9 +74,41 @@ function uniq(arr) {
   return [...new Set(arr)];
 }
 
-// ✅ Ensure Accounts columns (A–M)
+async function ensureLogsSheet(sheets) {
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const exists = (meta.data.sheets || []).some((s) => s.properties.title === sheetLogs);
+
+  if (!exists) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: { requests: [{ addSheet: { properties: { title: sheetLogs } } }] },
+    });
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetLogs}!A1:D1`,
+      valueInputOption: "RAW",
+      requestBody: { values: [["Timestamp", "Action", "Email", "Details"]] },
+    });
+  }
+}
+
+async function addLog(action, email, details = "") {
+  const sheets = await getClient();
+  await ensureLogsSheet(sheets);
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: `${sheetLogs}!A:D`,
+    valueInputOption: "RAW",
+    requestBody: { values: [[new Date().toISOString(), action, email, details]] },
+  });
+}
+
+// ✅ Ensure Accounts columns (A–M) including Province + Position
 async function ensureAccountsColumns() {
   const sheets = await getClient();
+
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     range: `${sheetAccounts}!A1:M1`,
@@ -94,9 +131,10 @@ async function ensureAccountsColumns() {
       ]],
     },
   });
+
+  await ensureLogsSheet(sheets);
 }
 
-// Load accounts (A–M)
 async function loadAccounts() {
   const sheets = await getClient();
   await ensureAccountsColumns();
@@ -154,6 +192,8 @@ async function saveAccount({
       ]],
     },
   });
+
+  await addLog("Create Account", email, `Role:${role} Province:${province} Position:${position || ""}`);
 }
 
 async function updateLastLogin(email) {
@@ -173,6 +213,8 @@ async function updateLastLogin(email) {
     valueInputOption: "RAW",
     requestBody: { values: [[now, now]] },
   });
+
+  await addLog("Login", email, "User logged in");
 }
 
 // Admin allowed only if exists in Admin sheet (A=FN, B=MN, C=LN, D=Email)
@@ -199,29 +241,27 @@ async function isAuthorizedAdmin(firstName, middleName, lastName, email) {
   });
 }
 
+// ===== Date helpers for User TRN Update (Dec 25, 2025 format) =====
+function formatToDec25Style(yyyyMmDd) {
+  if (!yyyyMmDd) return "";
+  const d = new Date(yyyyMmDd + "T00:00:00");
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+}
+function tryParseDecStyleToISO(text) {
+  if (!text) return "";
+  const d = new Date(text);
+  if (isNaN(d.getTime())) return "";
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 // ========================= ROUTES ==============================
 
-// ✅ Provinces (Dropdown!D2:D)
-app.get("/api/provinces", async (req, res) => {
-  try {
-    const sheets = await getClient();
-    const result = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${sheetDropdown}!D2:D`,
-    });
-
-    const provinces = (result.data.values || [])
-      .map((r) => (r[0] || "").trim())
-      .filter(Boolean);
-
-    res.json({ success: true, provinces: uniq(provinces) });
-  } catch (err) {
-    console.error("Error in GET /api/provinces:", err.message || err);
-    res.status(500).json({ success: false, message: "Error reading provinces." });
-  }
-});
-
-// ✅ Positions (Dropdown!B2:B)
+// ---- Dropdowns for REGISTER ----
+// Positions = Dropdown!B2:B
 app.get("/api/positions", async (req, res) => {
   try {
     const sheets = await getClient();
@@ -241,7 +281,27 @@ app.get("/api/positions", async (req, res) => {
   }
 });
 
-// ✅ Admin eligible
+// Provinces = Dropdown!D2:D
+app.get("/api/provinces", async (req, res) => {
+  try {
+    const sheets = await getClient();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetDropdown}!D2:D`,
+    });
+
+    const provinces = (result.data.values || [])
+      .map((r) => (r[0] || "").trim())
+      .filter(Boolean);
+
+    res.json({ success: true, provinces: uniq(provinces) });
+  } catch (err) {
+    console.error("Error in GET /api/provinces:", err.message || err);
+    res.status(500).json({ success: false, message: "Error reading provinces." });
+  }
+});
+
+// ---- Admin eligibility ----
 app.post("/api/admin-eligible", async (req, res) => {
   try {
     const { firstName, middleName, lastName, email } = req.body || {};
@@ -255,7 +315,7 @@ app.post("/api/admin-eligible", async (req, res) => {
   }
 });
 
-// ✅ REGISTER
+// ---- REGISTER ----
 app.post("/api/register", async (req, res) => {
   const {
     email, password, role,
@@ -277,6 +337,7 @@ app.post("/api/register", async (req, res) => {
     if (role === "admin") {
       const allowed = await isAuthorizedAdmin(firstName, middleName, lastName, email);
       if (!allowed) {
+        await addLog("Admin Register Blocked", email, "Not in Admin sheet");
         return res.json({
           success: false,
           message: "Dili ka pwede mo-set og Admin Role (not authorized).",
@@ -284,18 +345,7 @@ app.post("/api/register", async (req, res) => {
       }
     }
 
-    await saveAccount({
-      email: String(email).toLowerCase(),
-      password,
-      role,
-      firstName,
-      middleName,
-      lastName,
-      viber,
-      province,
-      position
-    });
-
+    await saveAccount({ email, password, role, firstName, middleName, lastName, viber, province, position });
     res.json({ success: true });
   } catch (err) {
     console.error("Error in POST /api/register:", err.message || err);
@@ -303,7 +353,7 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// ✅ LOGIN (returns role + province + position)
+// ---- LOGIN (returns role + province + position) ----
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.json({ success: false, message: "Missing email or password" });
@@ -334,9 +384,9 @@ app.post("/api/login", async (req, res) => {
 });
 
 // =============================================================
-// ✅ DROPDOWN OPTIONS (Office Update Panel)
+// ✅ OFFICE DROPDOWN OPTIONS
 // Means of Notification: Dropdown!A2:A
-// Recapture Status:      Dropdown!E2:E   ✅ (as you said latest)
+// Recapture Status:      Dropdown!E2:E   ✅ (as you corrected)
 // =============================================================
 app.get("/api/means-notification", async (req, res) => {
   try {
@@ -379,17 +429,19 @@ app.get("/api/recapture-status-options", async (req, res) => {
 // =============================================================
 // ✅ OFFICE LIST
 // Province filter uses COLUMN G (index 6)
-// Reads A2:Q so we can check UpdatedAt marker in Q (index 16)
-// Updated badge BASED ONLY on Column Q
+// Base columns used in list:
+// B TRN, C Fullname, D Contact No, G Province
+// Updated flag uses J–P only (index 9..15) => DateContacted..RegistrationCenter
 // =============================================================
 app.get("/api/failed-registrations", async (req, res) => {
   try {
     const provinceQ = String(req.query.province || "").trim().toLowerCase();
     const sheets = await getClient();
 
+    // read A:P so we can compute updated (J..P)
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetFailed}!A2:Q`,
+      range: `${sheetFailed}!A2:P`,
     });
 
     const rows = result.data.values || [];
@@ -403,14 +455,15 @@ app.get("/api/failed-registrations", async (req, res) => {
         if (!trn) return null;
 
         const contactNo = String(r[3] || "").trim(); // D
-        const province = String(r[6] || "").trim();  // ✅ G (basis)
+        const province = String(r[6] || "").trim();  // G ✅ BASIS
+
         if (provinceQ && province.toLowerCase() !== provinceQ) return null;
 
-        // ✅ UpdatedAt marker = Column Q (index 16) ONLY
-        const updatedAt = String(r[16] || "").trim();
-        const updated = !!updatedAt;
+        // ✅ Updated only if J..P has any value (exclude H & I)
+        const updated = [r[9], r[10], r[11], r[12], r[13], r[14], r[15]]
+          .some((v) => String(v || "").trim());
 
-        return { rowNumber, trn, fullname, contactNo, province, updated, updatedAt };
+        return { rowNumber, trn, fullname, contactNo, province, updated };
       })
       .filter(Boolean);
 
@@ -422,8 +475,8 @@ app.get("/api/failed-registrations", async (req, res) => {
 });
 
 // =============================================================
-// ✅ GET SINGLE ROW (for autofill on update panel)
-// Reads A:Q so we can return UpdatedAt too
+// ✅ GET SINGLE ROW (for autofill on left update panel)
+// Reads A:P and computes updated same as list (J..P)
 // =============================================================
 app.get("/api/failed-registration-row", async (req, res) => {
   try {
@@ -434,20 +487,23 @@ app.get("/api/failed-registration-row", async (req, res) => {
 
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetFailed}!A${rn}:Q${rn}`,
+      range: `${sheetFailed}!A${rn}:P${rn}`,
     });
 
     const row = ((result.data.values || [])[0] || []);
 
-    const updatedAt = String(row[16] || "").trim(); // Q
+    const updated = [row[9], row[10], row[11], row[12], row[13], row[14], row[15]]
+      .some((v) => String(v || "").trim());
+
     const data = {
       rowNumber: rn,
       trn: String(row[1] || "").trim(),       // B
       fullname: String(row[2] || "").trim(),  // C
       contactNo: String(row[3] || "").trim(), // D
       province: String(row[6] || "").trim(),  // G
+      updated,
 
-      // H-P autofill
+      // H-P fields
       presentAddress: String(row[7] || "").trim(),        // H
       provincePresent: String(row[8] || "").trim(),       // I
       dateContacted: String(row[9] || "").trim(),         // J
@@ -457,10 +513,6 @@ app.get("/api/failed-registration-row", async (req, res) => {
       provinceRegistration: String(row[13] || "").trim(), // N
       cityMunicipality: String(row[14] || "").trim(),     // O
       registrationCenter: String(row[15] || "").trim(),   // P
-
-      // ✅ Updated marker
-      updated: !!updatedAt,
-      updatedAt,
     };
 
     return res.json({ success: true, data });
@@ -471,14 +523,14 @@ app.get("/api/failed-registration-row", async (req, res) => {
 });
 
 // =============================================================
-// ✅ UPDATE H–P + set UpdatedAt marker in Q
+// ✅ UPDATE J–P only (exclude H & I per your request)
+// J=DateContacted, K=Means, L=RecaptureStatus, M=RecaptureSchedule,
+// N=Province(reg), O=City/Mun, P=RegistrationCenter
 // =============================================================
 app.post("/api/failed-registration-update", async (req, res) => {
   try {
     const {
       rowNumber,
-      presentAddress,
-      provincePresent,
       dateContacted,
       meansOfNotification,
       recaptureStatus,
@@ -493,34 +545,24 @@ app.post("/api/failed-registration-update", async (req, res) => {
 
     const sheets = await getClient();
 
-    // 1) Update H-P
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${sheetFailed}!H${rn}:P${rn}`,
+      range: `${sheetFailed}!J${rn}:P${rn}`,
       valueInputOption: "RAW",
       requestBody: {
         values: [[
-          String(presentAddress || "").trim(),         // H
-          String(provincePresent || "").trim(),        // I
-          String(dateContacted || "").trim(),          // J
-          String(meansOfNotification || "").trim(),    // K
-          String(recaptureStatus || "").trim(),        // L
-          String(recaptureSchedule || "").trim(),      // M
-          String(provinceRegistration || "").trim(),   // N
-          String(cityMunicipality || "").trim(),       // O
-          String(registrationCenter || "").trim(),     // P
+          String(dateContacted || "").trim(),        // J
+          String(meansOfNotification || "").trim(),  // K
+          String(recaptureStatus || "").trim(),      // L
+          String(recaptureSchedule || "").trim(),    // M
+          String(provinceRegistration || "").trim(), // N
+          String(cityMunicipality || "").trim(),     // O
+          String(registrationCenter || "").trim(),   // P
         ]],
       },
     });
 
-    // 2) Set UpdatedAt marker in Q (ONLY marker used for badge)
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `${sheetFailed}!Q${rn}:Q${rn}`,
-      valueInputOption: "RAW",
-      requestBody: { values: [[new Date().toISOString()]] },
-    });
-
+    await addLog("Office Update", "system", `Row ${rn} updated J:P`);
     return res.json({ success: true });
   } catch (err) {
     console.error("Error in POST /api/failed-registration-update:", err.message || err);
@@ -528,7 +570,107 @@ app.post("/api/failed-registration-update", async (req, res) => {
   }
 });
 
-// ✅ 404 for API routes only
+// =============================================================
+// ✅ USER TRN SEARCH (reads Failed Registration A:S)
+// =============================================================
+app.post("/api/trn-search", async (req, res) => {
+  try {
+    const { trn } = req.body || {};
+    const cleanTrn = String(trn || "").trim();
+
+    if (!/^\d{29}$/.test(cleanTrn)) {
+      return res.json({ success: false, message: "Invalid TRN format. Must be 29 digits." });
+    }
+
+    const sheets = await getClient();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetFailed}!A2:S`,
+    });
+
+    const rows = result.data.values || [];
+    const index = rows.findIndex((r) => (r[1] || "").trim() === cleanTrn);
+
+    if (index === -1) {
+      return res.json({ success: false, message: "TRN not found in Failed Registration." });
+    }
+
+    const row = rows[index] || [];
+    const rowNumber = index + 2;
+
+    const record = {
+      rowNumber,
+      trn: row[1] || "",
+      fullname: row[2] || "",
+      permanentAddress: row[5] || "",  // F (if you use)
+      province: row[6] || "",          // G
+      recaptureStatus: row[11] || "",  // L (if you show)
+      recaptureSchedule: row[12] || "",// M
+      status: row[16] || "",           // Q
+      newTrn: row[17] || "",           // R
+      dateOfRecapture: row[18] || "",  // S
+      isoDateRecapture: tryParseDecStyleToISO(row[18] || ""),
+    };
+
+    return res.json({ success: true, record });
+  } catch (err) {
+    console.error("Error in POST /api/trn-search:", err.message || err);
+    return res.status(500).json({ success: false, message: "Server error while searching TRN." });
+  }
+});
+
+// =============================================================
+// ✅ USER TRN UPDATE (updates Q:S)
+// Q=Status, R=NewTRN, S=DateOfRecapture (formatted Dec 25, 2025)
+// =============================================================
+app.post("/api/trn-update", async (req, res) => {
+  try {
+    const { rowNumber, trn, status, newTrn, dateOfRecapture } = req.body || {};
+    const rn = Number(rowNumber);
+
+    if (!rn || rn < 2) return res.json({ success: false, message: "Invalid rowNumber." });
+
+    const cleanTrn = String(trn || "").trim();
+    if (!/^\d{29}$/.test(cleanTrn)) return res.json({ success: false, message: "Invalid TRN format." });
+
+    const cleanStatus = String(status || "").trim();
+    if (!cleanStatus) return res.json({ success: false, message: "Status is required." });
+
+    const cleanNewTrn = String(newTrn || "").trim();
+    if (cleanNewTrn && !/^\d{29}$/.test(cleanNewTrn)) {
+      return res.json({ success: false, message: "NEW TRN must be 29 digits (or leave blank)." });
+    }
+
+    const sheets = await getClient();
+
+    // verify TRN matches row
+    const check = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetFailed}!B${rn}:B${rn}`,
+    });
+    const foundTrn = (((check.data.values || [])[0] || [])[0] || "").trim();
+    if (foundTrn !== cleanTrn) {
+      return res.json({ success: false, message: "Row mismatch. Please search again before saving." });
+    }
+
+    const formattedDate = formatToDec25Style(String(dateOfRecapture || "").trim());
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetFailed}!Q${rn}:S${rn}`,
+      valueInputOption: "RAW",
+      requestBody: { values: [[cleanStatus, cleanNewTrn, formattedDate]] },
+    });
+
+    await addLog("TRN Update", "system", `TRN:${cleanTrn} Row:${rn} Q:S updated`);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Error in POST /api/trn-update:", err.message || err);
+    return res.status(500).json({ success: false, message: "Server error while saving update." });
+  }
+});
+
+// ✅ 404
 app.use((req, res) => {
   res.status(404).json({ success: false, message: `Route not found: ${req.method} ${req.originalUrl}` });
 });
