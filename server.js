@@ -405,25 +405,9 @@ app.post("/api/admin-eligible", async (req, res) => {
   }
 });
 
-// ✅ FAILED REGISTRATION LIST (Aligned to your sheet screenshot)
-// Columns from screenshot:
-// A No.
-// B TRN
-// C Fullname
-// D Address (Permanent Address)
-// E Province (for Address side)  ✅ USE THIS FOR FILTERING
-// ✅ FAILED REGISTRATION LIST (BASE ON COLUMN G = Province)
-// Based on your sheet screenshot:
-// A No.
-// B TRN
-// C Fullname
-// D (blank or separator column)
-// E (maybe Address)
-// F (blank)
-// G Province ✅ THIS is your basis
-// H Present Address
-// I Province (for present address)
-// ...
+// ✅ FAILED REGISTRATION LIST
+// BASIS: COLUMN G = Province (index 6)
+
 app.get("/api/failed-registrations", async (req, res) => {
   try {
     const provinceQ = String(req.query.province || "").trim().toLowerCase();
@@ -431,32 +415,40 @@ app.get("/api/failed-registrations", async (req, res) => {
     const sheets = await getClient();
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetFailed}!A2:M`,
+      range: `${sheetFailed}!A2:I`,
     });
 
     const rows = result.data.values || [];
 
     const records = rows
-      .filter((r) => (r[1] || "").toString().trim()) // must have TRN (col B)
-      .map((r) => ({
-        trn: (r[1] || "").toString().trim(),          // B
-        fullname: (r[2] || "").toString().trim(),     // C
-        contactNo: (r[3] || "").toString().trim(),    // (if naa) else blank
-        emailAddress: (r[4] || "").toString().trim(), // (if naa) else blank
-        permanentAddress: (r[5] || "").toString().trim(), // (if naa) else blank
-        province: (r[6] || "").toString().trim(),     // ✅ G (index 6)
+      .filter(r => (r[1] || "").trim()) // TRN exists (Column B)
+      .map(r => ({
+        trn: (r[1] || "").trim(),               // B
+        fullname: (r[2] || "").trim(),          // C
+        permanentAddress: (r[3] || "").trim(),  // D
+        province: (r[6] || "").trim(),          // ✅ G (BASIS)
       }));
 
     const filtered = provinceQ
-      ? records.filter((x) => String(x.province || "").trim().toLowerCase() === provinceQ)
+      ? records.filter(r =>
+          r.province.toLowerCase() === provinceQ
+        )
       : records;
 
-    return res.json({ success: true, records: filtered });
+    return res.json({
+      success: true,
+      records: filtered,
+    });
+
   } catch (err) {
-    console.error("Error in GET /api/failed-registrations:", err.message || err);
-    return res.status(500).json({ success: false, message: "Error loading failed registrations." });
+    console.error("FAILED REG ERROR:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load failed registrations",
+    });
   }
 });
+
 
 
     const filtered = provinceQ
@@ -577,4 +569,5 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("🔥 Server running on port " + PORT));
+
 
