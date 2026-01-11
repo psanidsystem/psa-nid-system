@@ -1,450 +1,292 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PSA • User Portal (Search)</title>
+// ===== AUTH GUARD (User Page) =====
+(() => {
+  const email = localStorage.getItem("email");
+  const role = localStorage.getItem("role");
+  const sessionAt = Number(localStorage.getItem("sessionAt") || "0");
 
-  <style>
-    :root{
-      --primary:#0033a0;
-      --primary2:#0056d6;
-      --bg:#f4f7ff;
-      --card:#ffffff;
-      --text:#1f2937;
-      --muted:#6b7280;
-      --border:#e5e7eb;
-      --shadow: 0 10px 25px rgba(0,0,0,0.08);
-      --radius: 14px;
-      --okbg:#eaf7ef;
-      --okbd:#bfe7cb;
-      --ok:#0f5132;
-      --errbg:#fdecec;
-      --errbd:#f2b8b8;
-      --err:#842029;
-    }
+  // 30 minutes session
+  const MAX_AGE_MS = 30 * 60 * 1000;
 
-    *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      font-family: Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-    }
+  if (!email || !role || !sessionAt || Date.now() - sessionAt > MAX_AGE_MS) {
+    localStorage.removeItem("email");
+    localStorage.removeItem("role");
+    localStorage.removeItem("sessionAt");
+    location.replace("index.html");
+    return;
+  }
 
-    /* Header */
-    .topbar{
-      position: sticky;
-      top:0;
-      z-index: 10;
-      background: linear-gradient(90deg, var(--primary), var(--primary2));
-      color:#fff;
-      padding: 12px 18px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.18);
-    }
-    .topbar-inner{
-      max-width: 1100px;
-      margin: 0 auto;
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 14px;
-      flex-wrap: wrap;
-    }
-    .brand{
-      display:flex;
-      align-items:center;
-      gap: 12px;
-      min-width: 260px;
-    }
-    .logos{
-      display:flex;
-      align-items:center;
-      gap: 10px;
-    }
-    .logo{
-      height: 42px;
-      width: 42px;
-      border-radius: 50%;
-      background:#fff;
-      padding: 4px;
-      object-fit: contain;
-    }
-    .brand-text h1{
-      margin:0;
-      font-size: 16px;
-      letter-spacing: 0.2px;
-    }
-    .brand-text p{
-      margin:2px 0 0;
-      font-size: 12px;
-      opacity: 0.9;
-    }
+  if (role !== "user") {
+    location.replace("index.html");
+    return;
+  }
+})();
 
-    .right-tools{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
+const API = location.origin;
 
-    .user-pill{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      background: rgba(255,255,255,0.14);
-      border: 1px solid rgba(255,255,255,0.22);
-      padding: 8px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      white-space: nowrap;
-    }
-    .user-pill .dot{
-      height:8px; width:8px;
-      border-radius:50%;
-      background:#22c55e;
-      box-shadow: 0 0 0 3px rgba(34,197,94,0.22);
-    }
+let record = null;
 
-    .logout-btn{
-      text-decoration:none;
-      background: rgba(255,255,255,0.16);
-      border: 1px solid rgba(255,255,255,0.22);
-      color:#fff;
-      font-weight: 800;
-      padding: 8px 12px;
-      border-radius: 999px;
-      font-size: 12px;
-    }
-    .logout-btn:hover{ filter: brightness(0.98); }
+// ===== Elements (Header) =====
+const userEmailEl = document.getElementById("userEmail");
+const logoutLink = document.getElementById("logoutLink");
 
-    /* Page layout */
-    .page{
-      max-width: 1100px;
-      margin: 18px auto;
-      padding: 0 14px;
-    }
+// ===== Elements (TRN UI) =====
+const trnInputEl = document.getElementById("trnInput");
+const searchBtnEl = document.getElementById("searchBtn");
+const clearBtnEl = document.getElementById("clearBtn");
 
-    .card{
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 16px;
-    }
+const msgOkEl = document.getElementById("msgOk");
+const msgErrEl = document.getElementById("msgErr");
 
-    .title{
-      display:flex;
-      align-items:flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .title h2{
-      margin:0;
-      color: var(--primary);
-      font-size: 18px;
-    }
-    .title p{
-      margin: 6px 0 0;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
-    }
+const detailWrapEl = document.getElementById("detailWrap");
+const fullNameValEl = document.getElementById("fullNameVal");
+const permAddrValEl = document.getElementById("permAddrVal");
+const recapStatusValEl = document.getElementById("recapStatusVal");
+const recapSchedValEl = document.getElementById("recapSchedVal");
 
-    /* TRN Search UI */
-    .search-row{
-      margin-top: 12px;
-      display:flex;
-      gap: 10px;
-      align-items:flex-end;
-      flex-wrap: wrap;
-    }
+const statusSelectEl = document.getElementById("statusSelect");
+const newTrnInputEl = document.getElementById("newTrnInput");
+const dateRecapInputEl = document.getElementById("dateRecapInput");
+const saveBtnEl = document.getElementById("saveBtn");
 
-    .field{
-      flex: 1;
-      min-width: 240px;
-      display:flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .field label{
-      font-size: 12px;
-      color: var(--muted);
-      font-weight: 800;
-    }
+// Spinners (optional)
+const searchSpinnerEl = document.getElementById("searchSpinner");
+const saveSpinnerEl = document.getElementById("saveSpinner");
+const saveTextEl = document.getElementById("saveText");
 
-    .search-input, .field input, .field select{
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px 12px;
-      font-size: 14px;
-      outline: none;
-      background:#fff;
-    }
-    .search-input:focus,
-    .field input:focus,
-    .field select:focus{
-      border-color: rgba(0,51,160,0.35);
-      box-shadow: 0 0 0 3px rgba(0,51,160,0.12);
-    }
+// ===== Helpers =====
+function showOk(text) {
+  if (msgErrEl) msgErrEl.style.display = "none";
+  if (msgOkEl) {
+    msgOkEl.textContent = text || "";
+    msgOkEl.style.display = "block";
+  }
+}
 
-    .btn{
-      border: none;
-      border-radius: 12px;
-      padding: 12px 16px;
-      background: var(--primary);
-      color: white;
-      font-weight: 800;
-      cursor: pointer;
-      box-shadow: 0 6px 14px rgba(0,51,160,0.22);
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:10px;
-      height: 44px;
-    }
-    .btn:hover{ filter: brightness(0.96); }
-    .btn.secondary{
-      background:#e9f0ff;
-      color: var(--primary);
-      border: 1px solid #cfe0ff;
-      box-shadow: none;
-    }
-    .btn:disabled{
-      opacity:.65;
-      cursor:not-allowed;
-      box-shadow:none;
+function showErr(text) {
+  if (msgOkEl) msgOkEl.style.display = "none";
+  if (msgErrEl) {
+    msgErrEl.textContent = text || "";
+    msgErrEl.style.display = "block";
+  }
+}
+
+function hideMsgs() {
+  if (msgOkEl) msgOkEl.style.display = "none";
+  if (msgErrEl) msgErrEl.style.display = "none";
+}
+
+function setButtonLoading(btn, spinnerEl, isLoading) {
+  if (!btn) return;
+  if (isLoading) {
+    btn.disabled = true;
+    btn.classList.add("loading");
+    if (spinnerEl) spinnerEl.style.display = "inline-block";
+  } else {
+    btn.disabled = false;
+    btn.classList.remove("loading");
+    if (spinnerEl) spinnerEl.style.display = "none";
+  }
+}
+
+function resetDetails() {
+  record = null;
+
+  if (detailWrapEl) detailWrapEl.style.display = "none";
+
+  if (fullNameValEl) fullNameValEl.textContent = "—";
+  if (permAddrValEl) permAddrValEl.textContent = "—";
+  if (recapStatusValEl) recapStatusValEl.textContent = "—";
+  if (recapSchedValEl) recapSchedValEl.textContent = "—";
+
+  if (statusSelectEl) statusSelectEl.value = "";
+  if (newTrnInputEl) newTrnInputEl.value = "";
+  if (dateRecapInputEl) dateRecapInputEl.value = "";
+
+  if (saveBtnEl) saveBtnEl.disabled = true;
+}
+
+function digitsOnlyValue(v) {
+  return (v || "").toString().replace(/\D/g, "");
+}
+
+function isValidTRN(trn) {
+  return /^\d{29}$/.test(trn);
+}
+
+/**
+ * HARD enforce digits-only:
+ * - removes non-digits on input
+ * - cleans paste
+ * - blocks drop
+ */
+function enforceDigitsOnly(el, maxLen = 29) {
+  if (!el) return;
+
+  const sanitize = () => {
+    el.value = digitsOnlyValue(el.value).slice(0, maxLen);
+  };
+
+  el.addEventListener("input", sanitize);
+  el.addEventListener("paste", () => setTimeout(sanitize, 0));
+  el.addEventListener("drop", (e) => e.preventDefault());
+}
+
+// ===== Init =====
+if (userEmailEl) userEmailEl.textContent = localStorage.getItem("email") || "—";
+resetDetails();
+
+// Enforce numeric-only fields
+enforceDigitsOnly(trnInputEl, 29);
+enforceDigitsOnly(newTrnInputEl, 29);
+
+// Enable/disable Search depending on TRN length
+trnInputEl &&
+  trnInputEl.addEventListener("input", () => {
+    if (!searchBtnEl) return;
+    searchBtnEl.disabled = trnInputEl.value.length !== 29;
+  });
+
+// Logout
+logoutLink &&
+  logoutLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    localStorage.removeItem("email");
+    localStorage.removeItem("role");
+    localStorage.removeItem("sessionAt");
+    location.replace("index.html");
+  });
+
+// ===== Load status options =====
+(async () => {
+  try {
+    const r = await fetch(API + "/api/status-options");
+    const d = await r.json();
+    if (!statusSelectEl) return;
+
+    statusSelectEl.innerHTML = `<option value="">-- Select Status --</option>`;
+    (d.statuses || []).forEach((s) => {
+      statusSelectEl.innerHTML += `<option value="${s}">${s}</option>`;
+    });
+  } catch (e) {
+    console.error("status-options error:", e);
+  }
+})();
+
+// ===== Search =====
+async function doSearch() {
+  hideMsgs();
+  resetDetails();
+
+  const trn = trnInputEl?.value || "";
+
+  if (!isValidTRN(trn)) {
+    showErr("TRN must be exactly 29 numeric digits.");
+    return;
+  }
+
+  setButtonLoading(searchBtnEl, searchSpinnerEl, true);
+
+  try {
+    const r = await fetch(API + "/api/trn-search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trn }),
+    });
+
+    const d = await r.json();
+
+    if (!d.success) {
+      resetDetails();
+      showErr(d.message || "TRN not found.");
+      return;
     }
 
-    .spinner{
-      width:16px;
-      height:16px;
-      border-radius:50%;
-      border:2px solid rgba(255,255,255,0.55);
-      border-top-color:#fff;
-      animation: spin 0.8s linear infinite;
-      display:none;
+    record = d.record;
+
+    if (detailWrapEl) detailWrapEl.style.display = "block";
+
+    if (fullNameValEl) fullNameValEl.textContent = record.fullname || "—";
+    if (permAddrValEl) permAddrValEl.textContent = record.permanentAddress || "—";
+    if (recapStatusValEl) recapStatusValEl.textContent = record.recaptureStatus || "—";
+    if (recapSchedValEl) recapSchedValEl.textContent = record.recaptureSchedule || "—";
+
+    if (statusSelectEl) statusSelectEl.value = record.status || "";
+    if (newTrnInputEl) newTrnInputEl.value = record.newTrn || "";
+    if (dateRecapInputEl) dateRecapInputEl.value = record.isoDateRecapture || "";
+
+    if (saveBtnEl) saveBtnEl.disabled = false;
+    showOk("TRN found.");
+  } catch (e) {
+    console.error("trn-search error:", e);
+    resetDetails();
+    showErr("Server error while searching TRN.");
+  } finally {
+    setButtonLoading(searchBtnEl, searchSpinnerEl, false);
+    // keep search disabled/enabled based on length
+    if (searchBtnEl && trnInputEl) {
+      searchBtnEl.disabled = trnInputEl.value.length !== 29;
     }
-    .btn.loading .spinner{ display:inline-block; }
-    @keyframes spin{ to { transform: rotate(360deg); } }
+  }
+}
 
-    .alert{
-      margin-top: 12px;
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      font-size: 13px;
-      display:none;
+// ===== Clear =====
+function doClear() {
+  hideMsgs();
+  resetDetails();
+  if (trnInputEl) trnInputEl.value = "";
+  if (searchBtnEl) searchBtnEl.disabled = true;
+}
+
+// ===== Save =====
+async function doSave() {
+  hideMsgs();
+  if (!record) return showErr("Please search a TRN first.");
+
+  const payload = {
+    rowNumber: record.rowNumber,
+    trn: record.trn,
+    status: statusSelectEl?.value || "",
+    newTrn: digitsOnlyValue(newTrnInputEl?.value),
+    dateOfRecapture: dateRecapInputEl?.value || "",
+  };
+
+  if (!payload.status) return showErr("Status is required.");
+  if (payload.newTrn && !isValidTRN(payload.newTrn)) {
+    return showErr("New TRN must be exactly 29 digits (or leave it blank).");
+  }
+
+  setButtonLoading(saveBtnEl, saveSpinnerEl, true);
+  if (saveTextEl) saveTextEl.textContent = "Saving...";
+
+  try {
+    const r = await fetch(API + "/api/trn-update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const d = await r.json();
+    if (!d.success) return showErr(d.message || "Save failed.");
+
+    showOk("Saved!");
+  } catch (e) {
+    console.error("trn-update error:", e);
+    showErr("Server error while saving.");
+  } finally {
+    setButtonLoading(saveBtnEl, saveSpinnerEl, false);
+    if (saveTextEl) saveTextEl.textContent = "Save";
+  }
+}
+
+// ===== Wire events =====
+searchBtnEl && searchBtnEl.addEventListener("click", doSearch);
+clearBtnEl && clearBtnEl.addEventListener("click", doClear);
+saveBtnEl && saveBtnEl.addEventListener("click", doSave);
+
+trnInputEl &&
+  trnInputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      doSearch();
     }
-    .alert.ok{
-      display:block;
-      background: var(--okbg);
-      border-color: var(--okbd);
-      color: var(--ok);
-      font-weight: 700;
-    }
-    .alert.err{
-      display:block;
-      background: var(--errbg);
-      border-color: var(--errbd);
-      color: var(--err);
-      font-weight: 700;
-    }
-
-    /* Detail */
-    #detailWrap{
-      margin-top: 14px;
-      display:none;
-    }
-    .detail-grid{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .detail-item{
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px;
-      background:#fbfdff;
-    }
-    .detail-item .label{
-      font-size: 12px;
-      color: var(--muted);
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-    .detail-item .value{
-      font-size: 14px;
-      font-weight: 800;
-      color:#0f172a;
-      word-break: break-word;
-    }
-
-    .update-card{
-      margin-top: 14px;
-      padding: 14px;
-    }
-    .update-card h3{
-      margin:0 0 6px;
-      color: var(--primary);
-      font-size: 16px;
-    }
-    .form-grid{
-      margin-top: 12px;
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .actions{
-      margin-top: 12px;
-      display:flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items:center;
-    }
-
-    .hint{
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 6px;
-      line-height: 1.45;
-    }
-
-    @media (max-width: 900px){
-      .detail-grid{ grid-template-columns: 1fr; }
-      .form-grid{ grid-template-columns: 1fr; }
-      .btn{ width: 100%; }
-      .search-row{ flex-direction: column; align-items: stretch; }
-    }
-  </style>
-</head>
-
-<body>
-  <div class="topbar">
-    <div class="topbar-inner">
-      <div class="brand">
-        <div class="logos">
-          <img class="logo" src="assets/images/psa.png" alt="PSA Logo">
-          <img class="logo" src="assets/images/philsys.png" alt="PhilSys Logo">
-        </div>
-        <div class="brand-text">
-          <h1>PSA • National ID System</h1>
-          <p>User Portal • TRN Search</p>
-        </div>
-      </div>
-
-      <div class="right-tools">
-        <div class="user-pill" title="Logged in user">
-          <span class="dot"></span>
-          <span id="userEmail">—</span>
-        </div>
-        <a class="logout-btn" href="index.html" id="logoutLink">Logout</a>
-      </div>
-    </div>
-  </div>
-
-  <div class="page">
-    <section class="card" aria-labelledby="trnTitle">
-      <div class="title">
-        <div>
-          <h2 id="trnTitle">TRN Search</h2>
-          <p>Enter the <b>29-digit TRN</b> to view details and update recapture fields.</p>
-          <div class="hint">Numbers only. Characters/symbols will be blocked/removed automatically.</div>
-        </div>
-      </div>
-
-      <div class="search-row">
-        <div class="field">
-          <label for="trnInput">TRN (29 digits)</label>
-          <input
-            id="trnInput"
-            class="search-input"
-            type="text"
-            inputmode="numeric"
-            pattern="[0-9]{29}"
-            maxlength="29"
-            placeholder="29-digit TRN"
-            autocomplete="off"
-          />
-        </div>
-
-        <button class="btn" id="searchBtn" type="button" disabled>
-          <span class="spinner" id="searchSpinner"></span>
-          <span>Search</span>
-        </button>
-
-        <button class="btn secondary" id="clearBtn" type="button">Clear</button>
-      </div>
-
-      <div id="msgOk" class="alert ok" role="status" aria-live="polite"></div>
-      <div id="msgErr" class="alert err" role="alert" aria-live="assertive"></div>
-
-      <div id="detailWrap">
-        <div class="detail-grid">
-          <div class="detail-item">
-            <div class="label">Fullname</div>
-            <div id="fullNameVal" class="value">—</div>
-          </div>
-
-          <div class="detail-item">
-            <div class="label">Permanent Address</div>
-            <div id="permAddrVal" class="value">—</div>
-          </div>
-
-          <div class="detail-item">
-            <div class="label">Recapture Status</div>
-            <div id="recapStatusVal" class="value">—</div>
-          </div>
-
-          <div class="detail-item">
-            <div class="label">Recapture Schedule</div>
-            <div id="recapSchedVal" class="value">—</div>
-          </div>
-        </div>
-
-        <div class="card update-card">
-          <h3>Update Fields</h3>
-
-          <div class="form-grid">
-            <div class="field">
-              <label for="statusSelect">Status <span style="color:#b91c1c;">*</span></label>
-              <select id="statusSelect" required>
-                <option value="">-- Select Status --</option>
-              </select>
-            </div>
-
-            <div class="field">
-              <label for="newTrnInput">New TRN (29 digits)</label>
-              <input
-                id="newTrnInput"
-                type="text"
-                inputmode="numeric"
-                pattern="[0-9]{29}"
-                maxlength="29"
-                placeholder="Enter (29 digits)"
-                autocomplete="off"
-              />
-            </div>
-
-            <div class="field" style="grid-column: 1 / -1;">
-              <label for="dateRecapInput">Date of Recapture</label>
-              <input id="dateRecapInput" type="date"/>
-            </div>
-          </div>
-
-          <div class="actions">
-            <button class="btn" id="saveBtn" type="button" disabled>
-              <span class="spinner" id="saveSpinner"></span>
-              <span id="saveText">Save</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <script src="assets/js/user.js?v=6"></script>
-</body>
-</html>
+  });
