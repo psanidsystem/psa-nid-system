@@ -191,6 +191,7 @@
       font-weight: 900;
       font-size: 13px;
       margin-top: 2px;
+      word-break: break-word;
     }
 
     .updated-badge{
@@ -205,11 +206,6 @@
       display:flex;
       align-items:center;
       gap:8px;
-    }
-    .updated-when{
-      color:#14532d;
-      font-weight: 700;
-      opacity: .85;
     }
 
     .field{
@@ -387,14 +383,15 @@
           <div class="mini-card">
             <div class="k">TRN:</div>
             <div class="v" id="selTrn">—</div>
+
             <div class="k" style="margin-top:6px;">Name:</div>
             <div class="v" id="selName">—</div>
+
             <div class="k" style="margin-top:6px;">Contact:</div>
             <div class="v" id="selContact">—</div>
 
             <div id="updatedBadge" class="updated-badge" style="display:none;">
               ✅ Updated Before
-              <span id="updatedWhen" class="updated-when"></span>
             </div>
           </div>
 
@@ -491,6 +488,7 @@
     });
   </script>
 
-  <script src="assets/js/office.js?v=300" defer></script>
+  <!-- ✅ keep your office.js -->
+  <script src="assets/js/office.js?v=400" defer></script>
 </body>
 </html>
