@@ -1,8 +1,19 @@
+const API = location.origin;
+
+// ✅ Office positions allowed
+const OFFICE_POSITIONS = new Set([
+  "Registration Officer III",
+  "Registration Officer II",
+  "Information Officer I",
+]);
+
 // ===== AUTH GUARD (Office Page) =====
 (() => {
   const email = localStorage.getItem("email");
   const role = localStorage.getItem("role");
   const sessionAt = Number(localStorage.getItem("sessionAt") || "0");
+  const position = (localStorage.getItem("position") || "").trim();
+  const province = (localStorage.getItem("province") || "").trim();
 
   const MAX_AGE_MS = 30 * 60 * 1000;
 
@@ -10,130 +21,159 @@
     localStorage.removeItem("email");
     localStorage.removeItem("role");
     localStorage.removeItem("sessionAt");
+    localStorage.removeItem("position");
+    localStorage.removeItem("province");
+    location.replace("index.html");
+    return;
+  }
+
+  // must be user + office position
+  if (role !== "user" || !OFFICE_POSITIONS.has(position)) {
+    location.replace("user.html");
+    return;
+  }
+
+  // must have province (required for filtering)
+  if (!province) {
+    // If missing province, force re-login so session will get province from /api/login
     location.replace("index.html");
     return;
   }
 })();
 
-
-const API = location.origin;
-
+// ===== Elements (optional, if you have them in office.html) =====
 const userEmailEl = document.getElementById("userEmail");
-const logoutLink = document.getElementById("logoutLink");
+const userProvinceEl = document.getElementById("userProvince"); // optional label span
+const logoutLink = document.getElementById("logoutLink");       // optional logout button/link
 
-const qInput = document.getElementById("qInput");
-const refreshBtn = document.getElementById("refreshBtn");
-const refreshSpinner = document.getElementById("refreshSpinner");
+// Records UI (adjust IDs based on your office.html)
+const tableBodyEl = document.getElementById("recordsBody");      // tbody
+const countEl = document.getElementById("recordsCount");         // optional
+const msgOkEl = document.getElementById("msgOk");                // optional
+const msgErrEl = document.getElementById("msgErr");              // optional
+const refreshBtnEl = document.getElementById("refreshBtn");      // optional
 
-const tbody = document.getElementById("tbody");
-const subText = document.getElementById("subText");
-
-const msgOk = document.getElementById("msgOk");
-const msgErr = document.getElementById("msgErr");
-
-let RAW = [];
-
-function showOk(t){ msgErr.style.display="none"; msgOk.textContent=t||""; msgOk.style.display="block"; }
-function showErr(t){ msgOk.style.display="none"; msgErr.textContent=t||""; msgErr.style.display="block"; }
-function hideMsgs(){ msgOk.style.display="none"; msgErr.style.display="none"; }
-
-function escapeHtml(s){
-  return String(s ?? "")
-    .replaceAll("&","&amp;").replaceAll("<","&lt;")
-    .replaceAll(">","&gt;").replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
+// ===== Helpers =====
+function showOk(text) {
+  if (!msgOkEl) return;
+  msgOkEl.textContent = text || "";
+  msgOkEl.style.display = "block";
+  if (msgErrEl) msgErrEl.style.display = "none";
+}
+function showErr(text) {
+  if (!msgErrEl) return;
+  msgErrEl.textContent = text || "";
+  msgErrEl.style.display = "block";
+  if (msgOkEl) msgOkEl.style.display = "none";
+}
+function clearMsgs() {
+  if (msgOkEl) msgOkEl.style.display = "none";
+  if (msgErrEl) msgErrEl.style.display = "none";
 }
 
-function setLoading(isLoading){
-  refreshBtn.disabled = isLoading;
-  refreshBtn.classList.toggle("loading", isLoading);
-  if (refreshSpinner) refreshSpinner.style.display = isLoading ? "inline-block" : "none";
+function escapeHtml(s) {
+  return (s ?? "").toString()
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-function normalize(str){
-  return String(str ?? "").toLowerCase().trim();
-}
+// ===== Session info =====
+const sessionEmail = localStorage.getItem("email") || "—";
+const sessionProvince = (localStorage.getItem("province") || "").trim();
 
-function render(rows){
-  if (!rows.length){
-    tbody.innerHTML = `<tr><td colspan="6">No records found for your province.</td></tr>`;
+if (userEmailEl) userEmailEl.textContent = sessionEmail;
+if (userProvinceEl) userProvinceEl.textContent = sessionProvince;
+
+// Logout
+logoutLink && logoutLink.addEventListener("click", (e) => {
+  e.preventDefault();
+  localStorage.removeItem("email");
+  localStorage.removeItem("role");
+  localStorage.removeItem("sessionAt");
+  localStorage.removeItem("position");
+  localStorage.removeItem("province");
+  location.replace("index.html");
+});
+
+// ===== Render =====
+function renderRows(rows) {
+  if (!tableBodyEl) return;
+
+  tableBodyEl.innerHTML = "";
+
+  if (!rows || rows.length === 0) {
+    tableBodyEl.innerHTML = `
+      <tr>
+        <td colspan="10" style="padding:12px; color:#6b7280; font-weight:700;">
+          No records found for province: ${escapeHtml(sessionProvince)}
+        </td>
+      </tr>`;
+    if (countEl) countEl.textContent = "0";
     return;
   }
 
-  tbody.innerHTML = rows.map(r => `
-    <tr>
-      <td>${escapeHtml(r.trn)}</td>
-      <td><b>${escapeHtml(r.fullname)}</b></td>
-      <td>${escapeHtml(r.contactNo)}</td>
-      <td>${escapeHtml(r.emailAddress)}</td>
-      <td>${escapeHtml(r.permanentAddress)}</td>
-      <td>${escapeHtml(r.province)}</td>
-    </tr>
-  `).join("");
+  if (countEl) countEl.textContent = String(rows.length);
+
+  // ✅ Adjust columns to match your sheet fields
+  // Example fields: fullname, province, trn, status, date, remarks
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(r.fullname || r.fullName || "")}</td>
+      <td>${escapeHtml(r.province || "")}</td>
+      <td>${escapeHtml(r.trn || "")}</td>
+      <td>${escapeHtml(r.status || "")}</td>
+      <td>${escapeHtml(r.date || r.dateOfRegistration || "")}</td>
+      <td>${escapeHtml(r.remarks || "")}</td>
+    `;
+    tableBodyEl.appendChild(tr);
+  }
 }
 
-function applyFilters(){
-  const q = normalize(qInput.value);
-  let rows = RAW.slice();
+// ===== Fetch records filtered by province =====
+async function loadFailedRegistrations() {
+  clearMsgs();
 
-  if (q){
-    rows = rows.filter(r => {
-      const blob = [
-        r.trn,
-        r.fullname,
-        r.contactNo,
-        r.emailAddress,
-        r.permanentAddress,
-        r.province
-      ].map(normalize).join(" ");
-      return blob.includes(q);
-    });
+  if (!sessionProvince) {
+    showErr("No province in session. Please login again.");
+    return;
   }
 
-  render(rows);
-}
+  try {
+    // ✅ OPTION A (Recommended): server-side filtering
+    // Create endpoint: GET /api/failed-registrations?province=Cebu
+    const url = API + "/api/failed-registrations?province=" + encodeURIComponent(sessionProvince);
+    const r = await fetch(url);
+    const d = await r.json();
 
-async function load(){
-  hideMsgs();
-  setLoading(true);
-
-  try{
-    const email = (localStorage.getItem("email") || "").trim();
-    if (!email){
-      location.href = "index.html";
+    // expected: { success:true, records:[...] }
+    if (d.success && Array.isArray(d.records)) {
+      renderRows(d.records);
+      showOk(`Showing records for: ${sessionProvince}`);
       return;
     }
 
-    if (userEmailEl) userEmailEl.textContent = email;
+    // ✅ OPTION B fallback: if your endpoint returns "allRecords"
+    // Or if endpoint doesn't exist yet, you can change this fallback accordingly.
+    if (Array.isArray(d.records)) {
+      const filtered = d.records.filter(x => (x.province || "").trim() === sessionProvince);
+      renderRows(filtered);
+      showOk(`Showing records for: ${sessionProvince}`);
+      return;
+    }
 
-    const r = await fetch(API + "/api/office-failed?email=" + encodeURIComponent(email));
-    const d = await r.json();
-
-    if (!d.success) throw new Error(d.message || "Failed to load.");
-
-    RAW = Array.isArray(d.records) ? d.records : [];
-    subText.textContent = `Province: ${d.userProvince} • Records: ${d.count}`;
-
-    applyFilters();
-    showOk(`Loaded ${d.count} record(s) for ${d.userProvince}.`);
-  }catch(e){
-    console.error(e);
-    RAW = [];
-    subText.textContent = "Failed to load records.";
-    tbody.innerHTML = `<tr><td colspan="6">Failed to load data.</td></tr>`;
-    showErr(e.message || "Server error.");
-  }finally{
-    setLoading(false);
+    showErr(d.message || "Failed to load records.");
+  } catch (e) {
+    console.error("failed-registrations error:", e);
+    showErr("Server error while loading records.");
   }
 }
 
-logoutLink && logoutLink.addEventListener("click", () => {
-  localStorage.removeItem("email");
-  localStorage.removeItem("role");
-});
+// Refresh
+refreshBtnEl && refreshBtnEl.addEventListener("click", loadFailedRegistrations);
 
-qInput && qInput.addEventListener("input", applyFilters);
-refreshBtn && refreshBtn.addEventListener("click", load);
-
-// init
-load();
+// Auto load on page open
+loadFailedRegistrations();
