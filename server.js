@@ -361,7 +361,7 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// ✅ LOGIN (FIXED: returns role + province + position)
+// ✅ LOGIN (returns role + province + position)
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.json({ success: false, message: "Missing email or password" });
@@ -406,8 +406,13 @@ app.post("/api/admin-eligible", async (req, res) => {
 });
 
 // ✅ FAILED REGISTRATION LIST
-// BASIS: COLUMN G = Province (index 6)
-
+// Assumed columns (A2:I):
+// B=TRN (index 1)
+// C=Fullname (index 2)
+// D=Permanent Address (index 3)
+// E=Contact No (index 4)  ✅ (added to match office.js table)
+// F=Email Address (index 5) ✅ (added to match office.js table)
+// G=Province (index 6)
 app.get("/api/failed-registrations", async (req, res) => {
   try {
     const provinceQ = String(req.query.province || "").trim().toLowerCase();
@@ -421,35 +426,15 @@ app.get("/api/failed-registrations", async (req, res) => {
     const rows = result.data.values || [];
 
     const records = rows
-      .filter(r => (r[1] || "").trim()) // TRN exists (Column B)
-      .map(r => ({
+      .filter((r) => (r[1] || "").trim()) // TRN exists (Column B)
+      .map((r) => ({
         trn: (r[1] || "").trim(),               // B
         fullname: (r[2] || "").trim(),          // C
         permanentAddress: (r[3] || "").trim(),  // D
-        province: (r[6] || "").trim(),          // ✅ G (BASIS)
+        contactNo: (r[4] || "").trim(),         // E ✅
+        emailAddress: (r[5] || "").trim(),      // F ✅
+        province: (r[6] || "").trim(),          // G ✅
       }));
-
-    const filtered = provinceQ
-      ? records.filter(r =>
-          r.province.toLowerCase() === provinceQ
-        )
-      : records;
-
-    return res.json({
-      success: true,
-      records: filtered,
-    });
-
-  } catch (err) {
-    console.error("FAILED REG ERROR:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to load failed registrations",
-    });
-  }
-});
-
-
 
     const filtered = provinceQ
       ? records.filter((x) => String(x.province || "").trim().toLowerCase() === provinceQ)
@@ -569,5 +554,3 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("🔥 Server running on port " + PORT));
-
-
