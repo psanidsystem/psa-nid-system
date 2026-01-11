@@ -27,7 +27,6 @@
       display:flex; align-items:center; justify-content: space-between;
       gap: 14px;
     }
-
     .brand{
       display:flex; align-items:center; gap: 12px;
       min-width: 280px;
@@ -42,7 +41,6 @@
     }
     .brand-text h1{ margin:0; font-size: 18px; font-weight: 900; }
     .brand-text p{ margin:2px 0 0; font-size: 13px; opacity: .95; font-weight: 800; }
-
     .right-tools{ display:flex; align-items:center; gap: 10px; }
 
     .user-pill{
@@ -143,12 +141,51 @@
     }
     .btn:hover{ filter: brightness(0.96); }
 
+    .split{ display:flex; gap:16px; margin-top:16px; align-items:flex-start; }
+
+    .panel{
+      width: 380px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      background:#fff;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.04);
+    }
+    .panel-title{ margin: 0 0 10px; font-size: 18px; font-weight: 900; color:#0f172a; }
+    .readonly{
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+    .lbl{ color: var(--muted); font-weight: 900; }
+
+    .grid label{
+      display:block;
+      font-size: 12px;
+      font-weight: 900;
+      color:#0f172a;
+      margin-bottom:10px;
+    }
+    .grid input, .grid textarea{
+      width:100%;
+      margin-top:6px;
+      border:1px solid var(--border);
+      border-radius: 12px;
+      padding:10px 12px;
+      font-size: 13px;
+      outline:none;
+      background:#fff;
+    }
+    .grid textarea{ resize: vertical; }
+
     .table-wrap{
       overflow:auto;
-      margin-top: 14px;
       border-radius: 14px;
       border: 1px solid var(--border);
       background:#fff;
+      flex: 1;
     }
     table{
       width:100%;
@@ -172,9 +209,12 @@
     }
     .muted{ color: var(--muted); font-weight: 800; }
 
-    @media (max-width: 950px){
-      .input{ min-width: 100%; }
-      .brand-text h1{ font-size: 16px; }
+    tr.clickable:hover{ background:#eef5ff; }
+
+    @media (max-width: 1150px){
+      .split{ flex-direction: column; }
+      .panel{ width: 100%; }
+      table{ min-width: 900px; }
     }
   </style>
 
@@ -220,7 +260,6 @@
           <span class="dot"></span>
           <span id="userEmail">—</span>
         </div>
-
         <button id="logoutBtn" class="logout-btn" type="button">Logout</button>
       </div>
 
@@ -237,33 +276,90 @@
       </div>
 
       <div class="controls">
-        <input id="qInput" class="input" type="text" placeholder="Search TRN / Fullname / Contact / Email / Address / Province" />
+        <input id="qInput" class="input" type="text" placeholder="Search TRN / Fullname / Province" />
         <button id="refreshBtn" class="btn" type="button">
           Refresh
           <span id="refreshSpinner" style="display:none;">...</span>
         </button>
       </div>
 
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>TRN</th>
-              <th>Fullname</th>
-              <th>Contact No.</th>
-              <th>Email Address</th>
-              <th>Permanent Address</th>
-              <th>Province</th>
-            </tr>
-          </thead>
-          <tbody id="tbody">
-            <tr><td colspan="6" class="muted">Loading...</td></tr>
-          </tbody>
-        </table>
+      <div class="split">
+
+        <!-- LEFT UPDATE PANEL -->
+        <div class="panel">
+          <h3 class="panel-title">Update Record</h3>
+
+          <div class="readonly">
+            <div><span class="lbl">TRN:</span> <span id="selTrn">—</span></div>
+            <div><span class="lbl">Name:</span> <span id="selName">—</span></div>
+            <div><span class="lbl">Contact:</span> <span id="selContact">—</span></div>
+          </div>
+
+          <div class="grid">
+            <label>Present Address
+              <textarea id="presentAddress" rows="2"></textarea>
+            </label>
+
+            <label>Province (Present)
+              <input id="provincePresent" type="text" />
+            </label>
+
+            <label>Date Contacted (MM/DD/YYYY)
+              <input id="dateContacted" type="text" placeholder="MM/DD/YYYY" />
+            </label>
+
+            <label>Means of Notification
+              <input id="meansOfNotification" type="text" />
+            </label>
+
+            <label>Recapture Status
+              <input id="recaptureStatus" type="text" />
+            </label>
+
+            <label>Recapture Schedule (MM/DD/YYYY)
+              <input id="recaptureSchedule" type="text" placeholder="MM/DD/YYYY" />
+            </label>
+
+            <label>Province (Registration)
+              <input id="provinceRegistration" type="text" />
+            </label>
+
+            <label>City/Municipality
+              <input id="cityMunicipality" type="text" />
+            </label>
+
+            <label>Registration Center
+              <input id="registrationCenter" type="text" />
+            </label>
+          </div>
+
+          <button id="updateBtn" class="btn" type="button" style="width:100%; justify-content:center;">
+            Update
+          </button>
+
+          <p id="updateMsg" class="muted" style="margin:10px 0 0;">Select a row to update.</p>
+        </div>
+
+        <!-- RIGHT TABLE -->
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>TRN</th>
+                <th>Fullname</th>
+                <th>Province</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="3" class="muted">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
       </div>
     </section>
   </div>
 
-  <script src="assets/js/office.js?v=101" defer></script>
+  <script src="assets/js/office.js?v=200" defer></script>
 </body>
 </html>
