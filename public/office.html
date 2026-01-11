@@ -16,6 +16,7 @@
     *{ box-sizing:border-box; }
     body{ margin:0; font-family: Arial, sans-serif; background: var(--bg); color: var(--text); }
 
+    /* Topbar */
     .topbar{
       position: sticky; top:0; z-index: 10;
       background: linear-gradient(90deg, var(--primary), var(--primary2));
@@ -27,6 +28,7 @@
       display:flex; align-items:center; justify-content: space-between;
       gap: 14px;
     }
+
     .brand{
       display:flex; align-items:center; gap: 12px;
       min-width: 280px;
@@ -41,6 +43,7 @@
     }
     .brand-text h1{ margin:0; font-size: 18px; font-weight: 900; }
     .brand-text p{ margin:2px 0 0; font-size: 13px; opacity: .95; font-weight: 800; }
+
     .right-tools{ display:flex; align-items:center; gap: 10px; }
 
     .user-pill{
@@ -68,37 +71,47 @@
       border-radius: 999px;
       cursor:pointer;
     }
+    .logout-btn:hover{ filter: brightness(0.96); }
 
+    /* Layout */
     .wrap{
       max-width: 1400px;
       margin: 22px auto;
       padding: 0 14px;
     }
-
     .card{
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
-      padding: 22px;
+      padding: 18px;
     }
 
-    .card h2{
+    .header-row{
+      display:flex;
+      align-items:flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .header-row h2{
       margin:0;
-      font-size: 32px;
+      font-size: 30px;
       font-weight: 900;
       color:#0f172a;
     }
 
     .center-title{
+      width:100%;
       text-align:center;
-      margin-top: 14px;
+      margin-top: 10px;
     }
     .center-title h3{
       margin: 0;
       color: var(--primary);
-      font-size: 26px;
+      font-size: 24px;
       font-weight: 900;
+      letter-spacing: .3px;
     }
     .center-title p{
       margin: 6px 0 0;
@@ -111,7 +124,7 @@
       display:flex;
       gap: 12px;
       align-items:center;
-      margin-top: 18px;
+      margin-top: 14px;
       flex-wrap: wrap;
     }
     .input{
@@ -137,63 +150,122 @@
       align-items:center;
       gap:10px;
     }
+    .btn:hover{ filter: brightness(0.96); }
 
-    .split{ display:flex; gap:14px; margin-top:14px; align-items:flex-start; }
+    /* Two columns layout */
+    .grid{
+      display:grid;
+      grid-template-columns: 380px 1fr;
+      gap: 16px;
+      margin-top: 14px;
+      align-items:start;
+    }
 
     .panel{
-      width: 380px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 14px;
       background:#fff;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.04);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
     }
-    .panel-title{ margin: 0 0 10px; font-size: 18px; font-weight: 900; color:#0f172a; }
-    .readonly{
-      border: 1px dashed var(--border);
-      border-radius: 12px;
-      padding: 10px;
-      margin-bottom: 12px;
-      font-size: 13px;
-    }
-    .lbl{ color: var(--muted); font-weight: 900; }
 
-    .grid label{
+    .panel h4{
+      margin: 0 0 10px;
+      font-size: 16px;
+      font-weight: 900;
+      color:#0f172a;
+    }
+
+    .mini-card{
+      border:1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px;
+      background:#fbfdff;
+      margin-bottom: 10px;
+    }
+    .mini-card .k{
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 12px;
+    }
+    .mini-card .v{
+      font-weight: 900;
+      font-size: 13px;
+      margin-top: 2px;
+    }
+
+    .updated-badge{
+      margin-top: 10px;
+      background: #e8fff1;
+      border: 1px solid #86efac;
+      color: #166534;
+      padding: 8px 10px;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 12px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .updated-when{
+      color:#14532d;
+      font-weight: 700;
+      opacity: .85;
+    }
+
+    .field{
+      margin-top: 10px;
+    }
+    .field label{
       display:block;
       font-size: 12px;
       font-weight: 900;
+      margin-bottom: 6px;
       color:#0f172a;
-      margin-bottom:10px;
     }
-    .grid input, .grid textarea, .grid select{
+    .field input, .field select, .field textarea{
       width:100%;
-      margin-top:6px;
       border:1px solid var(--border);
       border-radius: 12px;
-      padding:10px 12px;
+      padding: 10px 12px;
       font-size: 13px;
       outline:none;
       background:#fff;
     }
-    .grid textarea{ resize: vertical; }
+    .field textarea{ min-height: 70px; resize: vertical; }
 
-    /* ✅ tighter table (fits 3 cols nicely) */
+    .save-row{
+      margin-top: 12px;
+      display:flex;
+      gap: 10px;
+      justify-content:flex-end;
+    }
+    .save-btn{
+      width:100%;
+      border:none;
+      background: var(--primary);
+      color:#fff;
+      font-weight: 900;
+      padding: 12px 14px;
+      border-radius: 12px;
+      cursor:pointer;
+      box-shadow: 0 6px 14px rgba(0,51,160,0.22);
+    }
+
+    /* Table */
     .table-wrap{
       overflow:auto;
-      border-radius: 14px;
+      border-radius: 16px;
       border: 1px solid var(--border);
       background:#fff;
-      flex: 1;
     }
     table{
       width:100%;
       border-collapse: collapse;
-      min-width: 720px;
+      min-width: 850px;
       background:#fff;
-      table-layout: fixed;
     }
     th, td{
-      padding: 10px 12px;
+      padding: 12px 14px;
       border-bottom: 1px solid var(--border);
       font-size: 13px;
       vertical-align: top;
@@ -208,25 +280,39 @@
       font-weight: 900;
     }
     .muted{ color: var(--muted); font-weight: 800; }
-    tr.clickable:hover{ background:#eef5ff; }
 
-    /* ✅ column widths */
-    th.col-trn, td.col-trn { width: 240px; }
-    th.col-name, td.col-name { width: 340px; }
-    th.col-contact, td.col-contact { width: 140px; }
-
-    td{
-      word-wrap: break-word;
-      overflow-wrap: anywhere;
+    .clickable{ cursor:pointer; }
+    .mini-btn{
+      border:none;
+      background:#eaf2ff;
+      color:#0b3aa0;
+      font-weight: 900;
+      padding: 8px 10px;
+      border-radius: 10px;
+      cursor:pointer;
+      white-space: nowrap;
     }
 
-    @media (max-width: 1150px){
-      .split{ flex-direction: column; }
-      .panel{ width: 100%; }
+    .tag{
+      display:inline-flex;
+      align-items:center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 900;
+      font-size: 12px;
+      border:1px solid var(--border);
+      background:#fff;
+    }
+    .tag-updated{ background:#e8fff1; border-color:#86efac; color:#166534; }
+    .tag-new{ background:#f3f4f6; color:#6b7280; }
+
+    @media (max-width: 1100px){
+      .grid{ grid-template-columns: 1fr; }
       table{ min-width: 700px; }
     }
   </style>
 
+  <!-- ✅ AUTH GUARD (Office) -->
   <script>
     (function () {
       const email = localStorage.getItem("email");
@@ -239,6 +325,7 @@
         location.replace("index.html");
         return;
       }
+
       if (role !== "office") {
         location.replace("user.html");
         return;
@@ -250,6 +337,7 @@
 <body>
   <div class="topbar">
     <div class="topbar-inner">
+
       <div class="brand">
         <div class="logos">
           <img class="logo" src="assets/images/psa.png" alt="PSA Logo">
@@ -262,18 +350,22 @@
       </div>
 
       <div class="right-tools">
-        <div class="user-pill">
+        <div class="user-pill" title="Logged in user">
           <span class="dot"></span>
-          <span id="userEmail">—</span>
+          <span id="userEmail">user@example.gov.ph</span>
         </div>
+
         <button id="logoutBtn" class="logout-btn" type="button">Logout</button>
       </div>
+
     </div>
   </div>
 
   <div class="wrap">
     <section class="card">
-      <h2>Failed Registration List</h2>
+      <div class="header-row">
+        <h2>Failed Registration List</h2>
+      </div>
 
       <div class="center-title">
         <h3 id="provinceTitle">Province of —</h3>
@@ -281,90 +373,124 @@
       </div>
 
       <div class="controls">
-        <input id="qInput" class="input" type="text" placeholder="Search TRN / Fullname / Contact / Province" />
+        <input id="qInput" class="input" type="text" placeholder="Search TRN / Fullname / Contact / Province / Updated" />
         <button id="refreshBtn" class="btn" type="button">
-          Refresh
-          <span id="refreshSpinner" style="display:none;">...</span>
+          Refresh <span id="refreshSpinner" style="display:none;">⏳</span>
         </button>
       </div>
 
-      <div class="split">
-
+      <div class="grid">
         <!-- LEFT UPDATE PANEL -->
-        <div class="panel">
-          <h3 class="panel-title">Update Record</h3>
+        <aside class="panel">
+          <h4>Update Record</h4>
 
-          <div class="readonly">
-            <div><span class="lbl">TRN:</span> <span id="selTrn">—</span></div>
-            <div><span class="lbl">Name:</span> <span id="selName">—</span></div>
-            <div><span class="lbl">Contact:</span> <span id="selContact">—</span></div>
+          <div class="mini-card">
+            <div class="k">TRN:</div>
+            <div class="v" id="selTrn">—</div>
+            <div class="k" style="margin-top:6px;">Name:</div>
+            <div class="v" id="selName">—</div>
+            <div class="k" style="margin-top:6px;">Contact:</div>
+            <div class="v" id="selContact">—</div>
+
+            <div id="updatedBadge" class="updated-badge" style="display:none;">
+              ✅ Updated Before
+              <span id="updatedWhen" class="updated-when"></span>
+            </div>
           </div>
 
-          <div class="grid">
-            <label>Present Address
-              <textarea id="presentAddress" rows="2"></textarea>
-            </label>
-
-            <label>Province (Present)
-              <input id="provincePresent" type="text" />
-            </label>
-
-            <label>Date Contacted
-              <input id="dateContacted" type="date" />
-            </label>
-
-            <label>Means of Notification
-              <select id="meansOfNotification"></select>
-            </label>
-
-            <label>Recapture Status
-              <select id="recaptureStatus"></select>
-            </label>
-
-            <label>Recapture Schedule
-              <input id="recaptureSchedule" type="date" />
-            </label>
-
-            <label>Province (Registration)
-              <input id="provinceRegistration" type="text" />
-            </label>
-
-            <label>City/Municipality
-              <input id="cityMunicipality" type="text" />
-            </label>
-
-            <label>Registration Center
-              <input id="registrationCenter" type="text" />
-            </label>
+          <div class="field">
+            <label>Present Address</label>
+            <textarea id="presentAddress" placeholder="Enter present address..."></textarea>
           </div>
 
-          <button id="updateBtn" class="btn" type="button" style="width:100%; justify-content:center;">
-            Update
-          </button>
+          <div class="field">
+            <label>Province (Present)</label>
+            <input id="provincePresent" type="text" placeholder="Enter province..." />
+          </div>
 
-          <p id="updateMsg" class="muted" style="margin:10px 0 0;">Select a row to update.</p>
-        </div>
+          <div class="field">
+            <label>Date Contacted</label>
+            <input id="dateContacted" type="date" />
+          </div>
 
-        <!-- RIGHT TABLE (3 columns) -->
+          <div class="field">
+            <label>Means of Notification</label>
+            <select id="meansOfNotification">
+              <option value="">Select Means...</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Recapture Status</label>
+            <select id="recaptureStatus">
+              <option value="">Select Status...</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Recapture Schedule</label>
+            <input id="recaptureSchedule" type="date" />
+          </div>
+
+          <div class="field">
+            <label>Province (Registration)</label>
+            <input id="provinceRegistration" type="text" placeholder="Enter registration province..." />
+          </div>
+
+          <div class="field">
+            <label>City/Municipality</label>
+            <input id="cityMunicipality" type="text" placeholder="Enter city/municipality..." />
+          </div>
+
+          <div class="field">
+            <label>Registration Center</label>
+            <input id="registrationCenter" type="text" placeholder="Enter registration center..." />
+          </div>
+
+          <div class="save-row">
+            <button id="saveBtn" class="save-btn" type="button">Save Update</button>
+          </div>
+        </aside>
+
+        <!-- RIGHT TABLE -->
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th class="col-trn">TRN</th>
-                <th class="col-name">Fullname</th>
-                <th class="col-contact">Contact No.</th>
+                <th>TRN</th>
+                <th>Fullname</th>
+                <th>Contact No.</th>
+                <th>Updated</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody id="tbody">
-              <tr><td colspan="3" class="muted">Loading...</td></tr>
+              <tr><td colspan="5" class="muted">Loading...</td></tr>
             </tbody>
           </table>
         </div>
-
       </div>
+
     </section>
   </div>
 
-  <script src="assets/js/office.js?v=400" defer></script>
+  <script>
+    // show logged in email
+    const emailEl = document.getElementById("userEmail");
+    if (emailEl) emailEl.textContent = localStorage.getItem("email") || "";
+
+    // logout
+    const logoutBtn = document.getElementById("logoutBtn");
+    logoutBtn && logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem("email");
+      localStorage.removeItem("role");
+      localStorage.removeItem("sessionAt");
+      localStorage.removeItem("position");
+      localStorage.removeItem("province");
+      location.replace("index.html");
+    });
+  </script>
+
+  <script src="assets/js/office.js?v=300" defer></script>
 </body>
 </html>
