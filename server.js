@@ -15,7 +15,9 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 app.use(express.static(PUBLIC_DIR));
 
 // ✅ Root route -> UI
-app.get("/", (req, res) => res.sendFile(path.join(PUBLIC_DIR, "index.html")));
+app.get("/", (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
+});
 
 // ✅ Health check
 app.get("/health", (req, res) => {
@@ -68,8 +70,19 @@ async function ensureAccountsColumns(sheets) {
     valueInputOption: "RAW",
     requestBody: {
       values: [[
-        "Email","Password","Role","Status","CreatedAt","UpdatedAt","LastLogin",
-        "FirstName","MiddleName","LastName","Viber","Province","Position"
+        "Email",
+        "Password",
+        "Role",
+        "Status",
+        "CreatedAt",
+        "UpdatedAt",
+        "LastLogin",
+        "FirstName",
+        "MiddleName",
+        "LastName",
+        "Viber",
+        "Province",
+        "Position",
       ]],
     },
   });
@@ -117,10 +130,19 @@ async function saveAccount({
     valueInputOption: "RAW",
     requestBody: {
       values: [[
-        email, password, role, "active",
-        now, now, "",
-        firstName, middleName || "", lastName,
-        viber, province, position || ""
+        email,
+        password,
+        role,
+        "active",
+        now,
+        now,
+        "",
+        firstName,
+        middleName || "",
+        lastName,
+        viber,
+        province,
+        position || "",
       ]],
     },
   });
@@ -148,6 +170,7 @@ async function updateLastLogin(email) {
 // Admin allowed only if exists in Admin sheet (A=FN, B=MN, C=LN, D=Email)
 async function isAuthorizedAdmin(firstName, middleName, lastName, email) {
   const sheets = await getClient();
+
   const result = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: `${sheetAdmin}!A2:D`,
@@ -168,29 +191,11 @@ async function isAuthorizedAdmin(firstName, middleName, lastName, email) {
   });
 }
 
-// ========================= DROPDOWNS FOR REGISTER =========================
-
-// GET provinces (Dropdown!D2:D)
-app.get("/api/provinces", async (req, res) => {
-  try {
-    const sheets = await getClient();
-    const result = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${sheetDropdown}!D2:D`,
-    });
-
-    const provinces = (result.data.values || [])
-      .map((r) => (r[0] || "").trim())
-      .filter(Boolean);
-
-    res.json({ success: true, provinces: uniq(provinces) });
-  } catch (err) {
-    console.error("Error in GET /api/provinces:", err.message || err);
-    res.status(500).json({ success: false, message: "Error reading provinces." });
-  }
-});
-
-// GET positions (Dropdown!B2:B)
+// =============================================================
+// ✅ DROPDOWNS (REGISTER)
+// Position - Col B  => Dropdown!B2:B
+// Province - Col D  => Dropdown!D2:D
+// =============================================================
 app.get("/api/positions", async (req, res) => {
   try {
     const sheets = await getClient();
@@ -200,17 +205,38 @@ app.get("/api/positions", async (req, res) => {
     });
 
     const positions = (result.data.values || [])
-      .map((r) => (r[0] || "").trim())
+      .map((r) => String(r[0] || "").trim())
       .filter(Boolean);
 
-    res.json({ success: true, positions: uniq(positions) });
+    return res.json({ success: true, positions: uniq(positions) });
   } catch (err) {
     console.error("Error in GET /api/positions:", err.message || err);
-    res.status(500).json({ success: false, message: "Error reading positions." });
+    return res.status(500).json({ success: false, positions: [], message: "Error reading positions." });
   }
 });
 
-// ========================= AUTH ROUTES =========================
+app.get("/api/provinces", async (req, res) => {
+  try {
+    const sheets = await getClient();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetDropdown}!D2:D`,
+    });
+
+    const provinces = (result.data.values || [])
+      .map((r) => String(r[0] || "").trim())
+      .filter(Boolean);
+
+    return res.json({ success: true, provinces: uniq(provinces) });
+  } catch (err) {
+    console.error("Error in GET /api/provinces:", err.message || err);
+    return res.status(500).json({ success: false, provinces: [], message: "Error reading provinces." });
+  }
+});
+
+// =============================================================
+// ✅ AUTH ROUTES
+// =============================================================
 
 // REGISTER
 app.post("/api/register", async (req, res) => {
@@ -233,7 +259,10 @@ app.post("/api/register", async (req, res) => {
     if (String(role).toLowerCase() === "admin") {
       const allowed = await isAuthorizedAdmin(firstName, middleName, lastName, email);
       if (!allowed) {
-        return res.json({ success: false, message: "Dili ka pwede mo-set og Admin Role (not authorized)." });
+        return res.json({
+          success: false,
+          message: "Dili ka pwede mo-set og Admin Role (not authorized).",
+        });
       }
     }
 
@@ -245,7 +274,7 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// ✅ LOGIN (fixes your error)
+// ✅ LOGIN
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.json({ success: false, message: "Missing email or password" });
@@ -258,6 +287,7 @@ app.post("/api/login", async (req, res) => {
     if (String(user.password || "") !== String(password || "")) {
       return res.json({ success: false, message: "Invalid email or password" });
     }
+
     if ((user.status || "").toLowerCase() !== "active") {
       return res.json({ success: false, message: "Account is disabled." });
     }
@@ -276,7 +306,7 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// admin eligible
+// Admin eligible
 app.post("/api/admin-eligible", async (req, res) => {
   try {
     const { firstName, middleName, lastName, email } = req.body || {};
@@ -290,9 +320,11 @@ app.post("/api/admin-eligible", async (req, res) => {
   }
 });
 
-// ========================= OFFICE ROUTES =========================
-
-// Means of Notification: Dropdown!A2:A
+// =============================================================
+// ✅ OFFICE DROPDOWNS
+// Means of Notification: Dropdown!A2:A  (Col A)
+// Recapture Status:      Dropdown!E2:E  (Col E)
+// =============================================================
 app.get("/api/means-notification", async (req, res) => {
   try {
     const sheets = await getClient();
@@ -312,7 +344,6 @@ app.get("/api/means-notification", async (req, res) => {
   }
 });
 
-// Recapture Status: Dropdown!E2:E
 app.get("/api/recapture-status-options", async (req, res) => {
   try {
     const sheets = await getClient();
@@ -339,7 +370,9 @@ function isUpdatedFromHP(row) {
   return false;
 }
 
-// Province filter uses COLUMN G (index 6)
+// =============================================================
+// ✅ OFFICE LIST (Province filter uses COLUMN G index 6)
+// =============================================================
 app.get("/api/failed-registrations", async (req, res) => {
   try {
     const provinceQ = String(req.query.province || "").trim().toLowerCase();
@@ -355,12 +388,14 @@ app.get("/api/failed-registrations", async (req, res) => {
     const records = rows
       .map((r, i) => {
         const rowNumber = i + 2;
+
         const trn = String(r[1] || "").trim();       // B
         const fullname = String(r[2] || "").trim();  // C
         if (!trn) return null;
 
         const contactNo = String(r[3] || "").trim(); // D
-        const province = String(r[6] || "").trim();  // G
+        const province = String(r[6] || "").trim();  // ✅ G
+
         if (provinceQ && province.toLowerCase() !== provinceQ) return null;
 
         return { rowNumber, trn, fullname, contactNo, province, updated: isUpdatedFromHP(r) };
@@ -374,13 +409,16 @@ app.get("/api/failed-registrations", async (req, res) => {
   }
 });
 
-// Get single row
+// =============================================================
+// ✅ GET SINGLE ROW (autofill update panel) reads A:P
+// =============================================================
 app.get("/api/failed-registration-row", async (req, res) => {
   try {
     const rn = Number(req.query.rowNumber);
     if (!rn || rn < 2) return res.json({ success: false, message: "Invalid rowNumber." });
 
     const sheets = await getClient();
+
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${sheetFailed}!A${rn}:P${rn}`,
@@ -390,21 +428,22 @@ app.get("/api/failed-registration-row", async (req, res) => {
 
     const data = {
       rowNumber: rn,
-      trn: String(row[1] || "").trim(),
-      fullname: String(row[2] || "").trim(),
-      contactNo: String(row[3] || "").trim(),
-      province: String(row[6] || "").trim(),
+      trn: String(row[1] || "").trim(),       // B
+      fullname: String(row[2] || "").trim(),  // C
+      contactNo: String(row[3] || "").trim(), // D
+      province: String(row[6] || "").trim(),  // G
       updated: isUpdatedFromHP(row),
 
-      presentAddress: String(row[7] || "").trim(),
-      provincePresent: String(row[8] || "").trim(),
-      dateContacted: String(row[9] || "").trim(),
-      meansOfNotification: String(row[10] || "").trim(),
-      recaptureStatus: String(row[11] || "").trim(),
-      recaptureSchedule: String(row[12] || "").trim(),
-      provinceRegistration: String(row[13] || "").trim(),
-      cityMunicipality: String(row[14] || "").trim(),
-      registrationCenter: String(row[15] || "").trim(),
+      // H-P
+      presentAddress: String(row[7] || "").trim(),        // H
+      provincePresent: String(row[8] || "").trim(),       // I
+      dateContacted: String(row[9] || "").trim(),         // J
+      meansOfNotification: String(row[10] || "").trim(),  // K
+      recaptureStatus: String(row[11] || "").trim(),      // L
+      recaptureSchedule: String(row[12] || "").trim(),    // M
+      provinceRegistration: String(row[13] || "").trim(), // N
+      cityMunicipality: String(row[14] || "").trim(),     // O
+      registrationCenter: String(row[15] || "").trim(),   // P
     };
 
     return res.json({ success: true, data });
@@ -414,7 +453,9 @@ app.get("/api/failed-registration-row", async (req, res) => {
   }
 });
 
-// Update H:P ONLY (NO Q, NO LOGS)
+// =============================================================
+// ✅ UPDATE H–P ONLY (NO Q, NO LOGS)
+// =============================================================
 app.post("/api/failed-registration-update", async (req, res) => {
   try {
     const {
