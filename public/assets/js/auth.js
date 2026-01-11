@@ -12,7 +12,6 @@ const OFFICE_POSITIONS = new Set([
 function normalize(v) {
   return (v || "").toString().trim();
 }
-
 function isOfficePosition(pos) {
   return OFFICE_POSITIONS.has(normalize(pos));
 }
@@ -61,13 +60,12 @@ registerTab && (registerTab.onclick = async () => {
 
   await loadProvinces();
   await loadPositions();
-
   updateRoleOptions();
   checkAdminEligibility();
 });
 
 // =======================
-// VIBER INPUT (09 + 11 DIGITS) - NO maxlength (spaces won't break)
+// Viber normalize
 // =======================
 const regViber = document.getElementById("regViber");
 
@@ -132,9 +130,7 @@ function setAdmin(show) {
   const note = document.getElementById("adminNote");
   if (!sel || !note) return;
 
-  // remove existing admin option if present
   [...sel.options].forEach(o => { if (o.value === "admin") sel.remove(o.index); });
-
   isAdminEligible = !!show;
 
   if (show) {
@@ -197,9 +193,7 @@ function ensureOption(selectEl, value, label) {
 
 function removeOption(selectEl, value) {
   if (!selectEl) return;
-  [...selectEl.options].forEach(o => {
-    if (o.value === value) selectEl.remove(o.index);
-  });
+  [...selectEl.options].forEach(o => { if (o.value === value) selectEl.remove(o.index); });
 }
 
 function updateRoleOptions() {
@@ -212,14 +206,10 @@ function updateRoleOptions() {
   if (pos && isOfficePosition(pos)) {
     removeOption(regRole, "user");
     ensureOption(regRole, "office", "Office");
-
-    if (!regRole.value || regRole.value === "user") {
-      regRole.value = "office";
-    }
+    if (!regRole.value || regRole.value === "user") regRole.value = "office";
   } else {
     removeOption(regRole, "office");
     ensureOption(regRole, "user", "User");
-
     if (regRole.value === "office") regRole.value = "user";
   }
 }
@@ -230,7 +220,7 @@ regPosition?.addEventListener("change", () => {
 });
 
 // =======================
-// LOGIN + Loading state
+// LOGIN
 // =======================
 const loginEmail = document.getElementById("loginEmail");
 const loginPassword = document.getElementById("loginPassword");
@@ -260,16 +250,14 @@ loginForm && (loginForm.onsubmit = async (e) => {
     const d = await r.json();
     if (!d.success) return showMsg(loginMsg, d.message, "error");
 
-    // ✅ session keys used by guards
     localStorage.setItem("email", email);
     localStorage.setItem("role", d.role || "user");
     localStorage.setItem("sessionAt", Date.now().toString());
 
-    // ✅ ALWAYS set (even if empty) to avoid stale values
-    localStorage.setItem("position", d.position || "");
+    // ✅ ALWAYS set (avoid stale)
     localStorage.setItem("province", d.province || "");
+    localStorage.setItem("position", d.position || "");
 
-    // ✅ redirect supports office role
     const role = (d.role || "user").toLowerCase();
     if (role === "admin") location.replace("admin.html");
     else if (role === "office") location.replace("office.html");
@@ -306,7 +294,6 @@ registerForm && (registerForm.onsubmit = async (e) => {
   if (!normalize(regProvince?.value)) return showMsg(regMsg, "Please select Province.", "error");
   if (!normalize(regRole?.value)) return showMsg(regMsg, "Please select Role.", "error");
 
-  // ✅ enforce office role if office position
   const pos = normalize(regPosition.value);
   if (isOfficePosition(pos) && regRole.value !== "office" && regRole.value !== "admin") {
     return showMsg(regMsg, "Selected position requires Office role.", "error");
