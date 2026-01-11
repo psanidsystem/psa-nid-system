@@ -415,6 +415,7 @@ app.post("/api/admin-eligible", async (req, res) => {
 // F = Contact No.      (index 5)  <-- observed: shows numbers
 // G = Province         (index 6)
 
+// ✅ FAILED REGISTRATION LIST (FINAL FIX — COLUMN ORDER VERIFIED)
 app.get("/api/failed-registrations", async (req, res) => {
   try {
     const provinceQ = String(req.query.province || "").trim().toLowerCase();
@@ -428,18 +429,33 @@ app.get("/api/failed-registrations", async (req, res) => {
     const rows = result.data.values || [];
 
     const records = rows
-      .filter((r) => (r[1] || "").trim()) // TRN exists (Column B)
-      .map((r) => ({
+      .filter(r => (r[1] || "").trim()) // TRN exists
+      .map(r => ({
         trn: (r[1] || "").trim(),               // B
         fullname: (r[2] || "").trim(),          // C
 
-        // ✅ FIXED: proper alignment based on your screenshot
-        emailAddress: (r[3] || "").trim(),      // D (gmail)
-        permanentAddress: (r[4] || "").trim(),  // E (address)
-        contactNo: (r[5] || "").trim(),         // F (number)
+        // ✅ CORRECT mapping based on screenshot
+        permanentAddress: (r[3] || "").trim(),  // D = Address
+        contactNo: (r[4] || "").trim(),         // E = Contact No.
+        emailAddress: (r[5] || "").trim(),      // F = Email
 
         province: (r[6] || "").trim(),          // G
       }));
+
+    const filtered = provinceQ
+      ? records.filter(r => r.province.toLowerCase() === provinceQ)
+      : records;
+
+    return res.json({ success: true, records: filtered });
+
+  } catch (err) {
+    console.error("FAILED REG ERROR:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load failed registrations",
+    });
+  }
+});
 
     const filtered = provinceQ
       ? records.filter((x) => String(x.province || "").trim().toLowerCase() === provinceQ)
@@ -560,4 +576,5 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("🔥 Server running on port " + PORT));
+
 
