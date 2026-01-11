@@ -17,14 +17,13 @@ const refreshBtnEl = document.getElementById("refreshBtn");
 const refreshSpinnerEl = document.getElementById("refreshSpinner");
 
 const tbodyEl = document.getElementById("tbody");
+const updatePanelEl = document.getElementById("updatePanel");
 
 // Left panel elements
 const selTrnEl = document.getElementById("selTrn");
 const selNameEl = document.getElementById("selName");
 const selContactEl = document.getElementById("selContact");
-
 const updatedBadgeEl = document.getElementById("updatedBadge");
-const updatedWhenEl = document.getElementById("updatedWhen");
 
 const presentAddressEl = document.getElementById("presentAddress");
 const provincePresentEl = document.getElementById("provincePresent");
@@ -54,7 +53,6 @@ if (provinceTitleEl) {
   provinceTitleEl.textContent = sessionProvince ? `Province of ${sessionProvince}` : "Province of —";
 }
 
-// ===== Small helpers =====
 function escapeHtml(s) {
   return (s ?? "").toString()
     .replaceAll("&", "&amp;")
@@ -73,6 +71,26 @@ function setCount(n) {
 let allRows = [];
 let selectedRowNumber = null;
 
+// ✅ highlight helpers
+function clearRowHighlights() {
+  if (!tbodyEl) return;
+  const trs = tbodyEl.querySelectorAll("tr");
+  trs.forEach((tr) => tr.classList.remove("row-selected"));
+}
+
+function highlightRow(rowNumber) {
+  if (!tbodyEl) return;
+  clearRowHighlights();
+  const tr = tbodyEl.querySelector(`tr[data-row-number="${rowNumber}"]`);
+  tr && tr.classList.add("row-selected");
+}
+
+// ✅ auto scroll to Update panel
+function scrollToUpdatePanel() {
+  if (!updatePanelEl) return;
+  updatePanelEl.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 // ===== Dropdown loaders =====
 async function loadMeansDropdown() {
   if (!meansEl) return;
@@ -81,6 +99,7 @@ async function loadMeansDropdown() {
     const r = await fetch(API + "/api/means-notification");
     const d = await r.json();
     if (!d.success) return;
+
     for (const item of d.items || []) {
       const opt = document.createElement("option");
       opt.value = item;
@@ -99,6 +118,7 @@ async function loadRecaptureStatusDropdown() {
     const r = await fetch(API + "/api/recapture-status-options");
     const d = await r.json();
     if (!d.success) return;
+
     for (const item of d.items || []) {
       const opt = document.createElement("option");
       opt.value = item;
@@ -127,10 +147,9 @@ function renderRows(rows) {
     const trn = escapeHtml(r.trn || "");
     const fullname = escapeHtml(r.fullname || "");
     const contactNo = escapeHtml(r.contactNo || "");
-    const updatedAt = (r.updatedAt || "").trim();
 
-    const updatedTag = updatedAt
-      ? `<span class="tag tag-updated" title="Updated at: ${escapeHtml(updatedAt)}">✅ Updated</span>`
+    const updatedTag = r.updated
+      ? `<span class="tag tag-updated">✅ Updated</span>`
       : `<span class="tag tag-new">—</span>`;
 
     const tr = document.createElement("tr");
@@ -145,7 +164,21 @@ function renderRows(rows) {
       <td><button class="mini-btn" type="button">Update</button></td>
     `;
 
-    tr.addEventListener("click", () => selectRow(r.rowNumber));
+    // ✅ Row click
+    tr.addEventListener("click", () => selectRow(r.rowNumber, true));
+
+    // ✅ Update button click (prevent double trigger)
+    const btn = tr.querySelector(".mini-btn");
+    btn && btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      selectRow(r.rowNumber, true);
+    });
+
+    // Keep highlight after re-render if selected
+    if (selectedRowNumber && Number(selectedRowNumber) === Number(r.rowNumber)) {
+      tr.classList.add("row-selected");
+    }
+
     tbodyEl.appendChild(tr);
   }
 }
@@ -163,7 +196,7 @@ function applySearch() {
       r.fullname,
       r.contactNo,
       r.province,
-      r.updatedAt || "",
+      r.updated ? "updated" : "",
     ].join(" ").toLowerCase();
 
     return hay.includes(q);
@@ -180,7 +213,6 @@ async function loadFailedRegistrations() {
     return;
   }
 
-  if (refreshBtnEl) refreshBtnEl.classList.add("loading");
   if (refreshBtnEl) refreshBtnEl.disabled = true;
   if (refreshSpinnerEl) refreshSpinnerEl.style.display = "inline-block";
 
@@ -197,20 +229,69 @@ async function loadFailedRegistrations() {
 
     allRows = Array.isArray(d.records) ? d.records : [];
     applySearch();
+
+    if (selectedRowNumber) highlightRow(selectedRowNumber);
   } catch (e) {
     console.error("loadFailedRegistrations error:", e);
     allRows = [];
     renderRows(allRows);
   } finally {
-    if (refreshBtnEl) refreshBtnEl.classList.remove("loading");
     if (refreshBtnEl) refreshBtnEl.disabled = false;
     if (refreshSpinnerEl) refreshSpinnerEl.style.display = "none";
   }
 }
 
-// ===== Select row => load row details =====
-async function selectRow(rowNumber) {
+// ===== Date helpers =====
+function toISODate(val) {
+  const s = String(val || "").trim();
+  if (!s) return "";
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) {
+    const mm = String(m[1]).padStart(2, "0");
+    const dd = String(m[2]).padStart(2, "0");
+    const yyyy = m[3];
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  return "";
+}
+
+function isoToMMDDYYYY(iso) {
+  const s = String(iso || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return "";
+  const [yyyy, mm, dd] = s.split("-");
+  return `${mm}/${dd}/${yyyy}`;
+}
+
+// min today (no backdate)
+function setMinToday(inputEl) {
+  if (!inputEl) return;
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  inputEl.min = `${yyyy}-${mm}-${dd}`;
+}
+setMinToday(dateContactedEl);
+setMinToday(recaptureScheduleEl);
+
+// ===== Select row => load details + highlight + scroll =====
+async function selectRow(rowNumber, shouldScroll = false) {
   selectedRowNumber = rowNumber;
+  highlightRow(rowNumber);
+
+  if (shouldScroll) scrollToUpdatePanel();
 
   try {
     const r = await fetch(API + "/api/failed-registration-row?rowNumber=" + encodeURIComponent(rowNumber));
@@ -223,7 +304,6 @@ async function selectRow(rowNumber) {
     if (selNameEl) selNameEl.textContent = x.fullname || "—";
     if (selContactEl) selContactEl.textContent = x.contactNo || "—";
 
-    // Prefill editable fields
     if (presentAddressEl) presentAddressEl.value = x.presentAddress || "";
     if (provincePresentEl) provincePresentEl.value = x.provincePresent || "";
     if (dateContactedEl) dateContactedEl.value = toISODate(x.dateContacted || "");
@@ -234,73 +314,11 @@ async function selectRow(rowNumber) {
     if (cityMunEl) cityMunEl.value = x.cityMunicipality || "";
     if (regCenterEl) regCenterEl.value = x.registrationCenter || "";
 
-    // Updated badge on left
-    const updatedAt = (x.updatedAt || "").trim();
-    if (updatedBadgeEl && updatedWhenEl) {
-      if (updatedAt) {
-        updatedBadgeEl.style.display = "flex";
-        updatedWhenEl.textContent = `(Last: ${updatedAt})`;
-      } else {
-        updatedBadgeEl.style.display = "none";
-        updatedWhenEl.textContent = "";
-      }
-    }
-
+    if (updatedBadgeEl) updatedBadgeEl.style.display = x.updated ? "flex" : "none";
   } catch (e) {
     console.error("selectRow error:", e);
   }
 }
-
-// ===== Date helpers =====
-// Input type="date" needs YYYY-MM-DD.
-// Sheet values might be MM/DD/YYYY or ISO already.
-function toISODate(val) {
-  const s = String(val || "").trim();
-  if (!s) return "";
-
-  // if already ISO
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-
-  // try MM/DD/YYYY
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) {
-    const mm = String(m[1]).padStart(2, "0");
-    const dd = String(m[2]).padStart(2, "0");
-    const yyyy = m[3];
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  // fallback try Date parse
-  const d = new Date(s);
-  if (!isNaN(d.getTime())) {
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  return "";
-}
-
-// Convert ISO (YYYY-MM-DD) to MM/DD/YYYY for sheet
-function isoToMMDDYYYY(iso) {
-  const s = String(iso || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return "";
-  const [yyyy, mm, dd] = s.split("-");
-  return `${mm}/${dd}/${yyyy}`;
-}
-
-// Prevent backdate
-function setMinToday(inputEl) {
-  if (!inputEl) return;
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  inputEl.min = `${yyyy}-${mm}-${dd}`;
-}
-setMinToday(dateContactedEl);
-setMinToday(recaptureScheduleEl);
 
 // ===== Save update =====
 async function saveUpdate() {
@@ -338,14 +356,10 @@ async function saveUpdate() {
       return;
     }
 
-    // Update badge immediately
-    if (updatedBadgeEl && updatedWhenEl) {
-      updatedBadgeEl.style.display = "flex";
-      updatedWhenEl.textContent = `(Last: ${d.updatedAt || "Updated"})`;
-    }
+    if (updatedBadgeEl) updatedBadgeEl.style.display = "flex";
 
-    // Refresh list to update Updated tag
     await loadFailedRegistrations();
+    if (selectedRowNumber) highlightRow(selectedRowNumber);
 
     alert("✅ Updated successfully!");
   } catch (e) {
@@ -362,11 +376,10 @@ refreshBtnEl && refreshBtnEl.addEventListener("click", loadFailedRegistrations);
 qInputEl && qInputEl.addEventListener("input", applySearch);
 saveBtnEl && saveBtnEl.addEventListener("click", saveUpdate);
 
-// ===== Guard fallback =====
+// ===== Guard =====
 if (sessionRole !== "office") {
   location.replace("user.html");
 } else {
-  // Load dropdowns first then list
   Promise.all([loadMeansDropdown(), loadRecaptureStatusDropdown()])
     .then(loadFailedRegistrations)
     .catch(loadFailedRegistrations);
