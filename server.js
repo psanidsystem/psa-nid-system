@@ -1,8 +1,9 @@
 // PSA NID SYSTEM — Server + UI (Render-ready)
 // - Serves static UI from /public
 // - Google Sheets backend
-// - Adds /api/accounts for admin dashboard
-// - Adds Position column (A–M)
+// - Accounts sheet columns A–M include Province + Position
+// - Fix login to return role + province + position (needed by office.html)
+// - Adds /api/failed-registrations (reads Failed Registration sheet)
 
 const express = require("express");
 const cors = require("cors");
@@ -16,7 +17,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ Serve frontend from /public (IMPORTANT)
+// ✅ Serve frontend from /public
 const PUBLIC_DIR = path.join(__dirname, "public");
 app.use(express.static(PUBLIC_DIR));
 
@@ -33,9 +34,7 @@ app.get("/health", (req, res) => {
 // ===== Google Sheets Setup (ENV JSON) =====
 function getCredentialsFromEnv() {
   const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-  if (!raw) {
-    throw new Error("Missing env GOOGLE_APPLICATION_CREDENTIALS_JSON in Render.");
-  }
+  if (!raw) throw new Error("Missing env GOOGLE_APPLICATION_CREDENTIALS_JSON in Render.");
   try {
     return JSON.parse(raw);
   } catch {
@@ -96,7 +95,7 @@ async function addLog(action, email, details = "") {
   });
 }
 
-// ✅ Ensure Accounts columns (A–M) including Position
+// ✅ Ensure Accounts columns (A–M) including Province + Position
 async function ensureColumns() {
   const sheets = await getClient();
 
@@ -380,14 +379,11 @@ app.post("/api/login", async (req, res) => {
 
     await updateLastLogin(email);
 
-    // ✅ MUST return these so office.html won't auto logout
     return res.json({
       success: true,
       role: user.role || "user",
       province: user.province || "",
       position: user.position || "",
-      firstName: user.firstName || "",
-      lastName: user.lastName || "",
     });
   } catch (err) {
     console.error("Error in POST /api/login:", err.message || err);
@@ -409,37 +405,38 @@ app.post("/api/admin-eligible", async (req, res) => {
   }
 });
 
-// ✅ FAILED REGISTRATION LIST (for office.html)
-// Optional: /api/failed-registrations?province=Cebu
+// ✅ FAILED REGISTRATION LIST (Aligned to your sheet screenshot)
+// Columns from screenshot:
+// A No.
+// B TRN
+// C Fullname
+// D Address (Permanent Address)
+// E Province (for Address side)  ✅ USE THIS FOR FILTERING
 app.get("/api/failed-registrations", async (req, res) => {
   try {
     const provinceQ = String(req.query.province || "").trim().toLowerCase();
 
     const sheets = await getClient();
-
-    // Read wide range, adjust if needed
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetFailed}!A2:S`,
+      range: `${sheetFailed}!A2:M`,
     });
 
     const rows = result.data.values || [];
 
-    // Based on your trn-search mapping:
-    // row[1]=TRN, row[2]=Fullname, row[5]=Permanent Address
-    // Column G province => row[6]
-    // Contact + Email not shown earlier; common guess: row[3]=Contact, row[4]=Email
-    const records = rows.map((row) => ({
-      trn: row[1] || "",
-      fullname: row[2] || "",
-      contactNo: row[3] || "",
-      emailAddress: row[4] || "",
-      permanentAddress: row[5] || "",
-      province: row[6] || "",
-    }));
+    const records = rows
+      .filter((r) => (r[1] || "").toString().trim()) // must have TRN
+      .map((r) => ({
+        trn: (r[1] || "").toString().trim(),
+        fullname: (r[2] || "").toString().trim(),
+        contactNo: "",           // not present in your screenshot columns A–M
+        emailAddress: "",        // not present in your screenshot columns A–M
+        permanentAddress: (r[3] || "").toString().trim(),
+        province: (r[4] || "").toString().trim(), // ✅ Column E
+      }));
 
     const filtered = provinceQ
-      ? records.filter((r) => String(r.province || "").trim().toLowerCase() === provinceQ)
+      ? records.filter((x) => String(x.province || "").trim().toLowerCase() === provinceQ)
       : records;
 
     return res.json({ success: true, records: filtered });
@@ -460,7 +457,6 @@ app.post("/api/trn-search", async (req, res) => {
     }
 
     const sheets = await getClient();
-
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${sheetFailed}!A2:S`,
@@ -480,7 +476,8 @@ app.post("/api/trn-search", async (req, res) => {
       rowNumber,
       trn: row[1] || "",
       fullname: row[2] || "",
-      permanentAddress: row[5] || "",
+      permanentAddress: row[3] || "",
+      province: row[4] || "",
       recaptureStatus: row[11] || "",
       recaptureSchedule: row[12] || "",
       status: row[16] || "",
