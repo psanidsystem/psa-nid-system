@@ -1,109 +1,159 @@
 const API = location.origin;
 
-// ===== AUTH GUARD =====
-(() => {
-  const email = localStorage.getItem("email");
-  const role = (localStorage.getItem("role") || "").toLowerCase();
-  const sessionAt = Number(localStorage.getItem("sessionAt") || "0");
-  const province = (localStorage.getItem("province") || "").trim();
-
-  const MAX_AGE = 30 * 60 * 1000;
-
-  if (!email || !role || !sessionAt || Date.now() - sessionAt > MAX_AGE) {
-    localStorage.clear();
-    location.replace("index.html");
-    return;
-  }
-
-  if (role !== "office" && role !== "admin") {
-    location.replace("user.html");
-    return;
-  }
-
-  if (!province) {
-    location.replace("index.html");
-    return;
-  }
-})();
-
-// ===== ELEMENTS =====
-const userEmailEl = document.getElementById("userEmail");
-const provinceTitleEl = document.getElementById("provinceTitle");
-const subTextEl = document.getElementById("subText");
-const qInputEl = document.getElementById("qInput");
-const refreshBtnEl = document.getElementById("refreshBtn");
-const tbodyEl = document.getElementById("tbody");
-
-// ===== SESSION =====
+// ===== Session info =====
 const sessionEmail = localStorage.getItem("email") || "";
+const sessionRole = (localStorage.getItem("role") || "").toLowerCase();
 const sessionProvince = (localStorage.getItem("province") || "").trim();
 
-if (userEmailEl) userEmailEl.textContent = sessionEmail;
-if (provinceTitleEl) provinceTitleEl.textContent = `Province of ${sessionProvince}`;
+// ===== Elements =====
+const userEmailEl = document.getElementById("userEmail");
+const logoutBtnEl = document.getElementById("logoutBtn");
 
-// ===== STATE =====
-let allRows = [];
-let shownRows = [];
+const provinceTitleEl = document.getElementById("provinceTitle");
+const countTextEl = document.getElementById("countText");
 
-// ===== HELPERS =====
-function esc(s) {
+const qInputEl = document.getElementById("qInput");
+const refreshBtnEl = document.getElementById("refreshBtn");
+const refreshSpinnerEl = document.getElementById("refreshSpinner");
+
+const tbodyEl = document.getElementById("tbody");
+
+function escapeHtml(s) {
   return (s ?? "").toString()
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;");
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
-function norm(v){ return (v||"").toString().trim(); }
 
-function render(rows){
+// ===== Logout =====
+function doLogout() {
+  localStorage.removeItem("email");
+  localStorage.removeItem("role");
+  localStorage.removeItem("sessionAt");
+  localStorage.removeItem("province");
+  localStorage.removeItem("position");
+  location.replace("index.html");
+}
+
+logoutBtnEl && logoutBtnEl.addEventListener("click", doLogout);
+
+// ===== Show header info =====
+if (userEmailEl) userEmailEl.textContent = sessionEmail || "—";
+
+if (provinceTitleEl) {
+  provinceTitleEl.textContent = sessionProvince ? `Province of ${sessionProvince}` : "Province of —";
+}
+
+// ===== Data cache =====
+let allRows = [];
+
+function setCount(n) {
+  if (!countTextEl) return;
+  countTextEl.textContent = `Showing ${n} record(s)`;
+}
+
+function renderRows(rows) {
+  if (!tbodyEl) return;
+
   tbodyEl.innerHTML = "";
-  if (!rows.length){
-    tbodyEl.innerHTML = `<tr><td colspan="6">No records found.</td></tr>`;
+
+  if (!rows || rows.length === 0) {
+    tbodyEl.innerHTML = `<tr><td colspan="6" class="muted">No records found.</td></tr>`;
+    setCount(0);
     return;
   }
 
-  rows.forEach(r=>{
+  setCount(rows.length);
+
+  for (const r of rows) {
+    const trn = escapeHtml(r.trn || "");
+    const fullname = escapeHtml(r.fullname || "");
+    const contactNo = escapeHtml(r.contactNo || "");
+    const emailAddress = escapeHtml(r.emailAddress || "");
+    const permanentAddress = escapeHtml(r.permanentAddress || "");
+    const province = escapeHtml(r.province || "");
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${esc(r.trn || r.TRN || "")}</td>
-      <td>${esc(r.fullname || r.Fullname || "")}</td>
-      <td>${esc(r.contact || r["Contact No."] || r.viber || "")}</td>
-      <td>${esc(r.email || r["Email Address"] || "")}</td>
-      <td>${esc(r.permanentAddress || r["Permanent Address"] || "")}</td>
-      <td>${esc(r.province || r.Province || "")}</td>
+      <td>${trn}</td>
+      <td>${fullname}</td>
+      <td>${contactNo}</td>
+      <td>${emailAddress}</td>
+      <td>${permanentAddress}</td>
+      <td>${province}</td>
     `;
     tbodyEl.appendChild(tr);
+  }
+}
+
+function applySearch() {
+  const q = (qInputEl?.value || "").trim().toLowerCase();
+  if (!q) {
+    renderRows(allRows);
+    return;
+  }
+
+  const filtered = allRows.filter((r) => {
+    const hay = [
+      r.trn,
+      r.fullname,
+      r.contactNo,
+      r.emailAddress,
+      r.permanentAddress,
+      r.province,
+    ].join(" ").toLowerCase();
+
+    return hay.includes(q);
   });
+
+  renderRows(filtered);
 }
 
-function applySearch(){
-  const q = (qInputEl.value || "").toLowerCase();
-  shownRows = !q ? allRows : allRows.filter(r =>
-    JSON.stringify(r).toLowerCase().includes(q)
-  );
-  render(shownRows);
-  subTextEl.textContent = `Showing ${shownRows.length} record(s)`;
+// ===== Fetch from server =====
+async function loadFailedRegistrations() {
+  if (!sessionProvince) {
+    if (tbodyEl) tbodyEl.innerHTML = `<tr><td colspan="6" class="muted">No province found in session. Please login again.</td></tr>`;
+    setCount(0);
+    return;
+  }
+
+  if (refreshBtnEl) refreshBtnEl.classList.add("loading");
+  if (refreshBtnEl) refreshBtnEl.disabled = true;
+  if (refreshSpinnerEl) refreshSpinnerEl.style.display = "inline-block";
+
+  try {
+    const url = API + "/api/failed-registrations?province=" + encodeURIComponent(sessionProvince);
+    const r = await fetch(url);
+    const d = await r.json();
+
+    if (!d.success) {
+      allRows = [];
+      renderRows(allRows);
+      return;
+    }
+
+    allRows = Array.isArray(d.records) ? d.records : [];
+    applySearch();
+  } catch (e) {
+    console.error("loadFailedRegistrations error:", e);
+    allRows = [];
+    renderRows(allRows);
+  } finally {
+    if (refreshBtnEl) refreshBtnEl.classList.remove("loading");
+    if (refreshBtnEl) refreshBtnEl.disabled = false;
+    if (refreshSpinnerEl) refreshSpinnerEl.style.display = "none";
+  }
 }
 
-// ===== LOAD DATA =====
-async function loadData(){
-  subTextEl.textContent = "Loading...";
-  const res = await fetch(API + "/api/failed-registrations");
-  const data = await res.json();
+// ===== Events =====
+refreshBtnEl && refreshBtnEl.addEventListener("click", loadFailedRegistrations);
+qInputEl && qInputEl.addEventListener("input", applySearch);
 
-  const records = data.records || data || [];
-
-  // ✅ BASED ON COLUMN G (Province)
-  allRows = records.filter(r =>
-    norm(r.province || r.Province) === sessionProvince
-  );
-
-  shownRows = allRows;
-  render(shownRows);
-  subTextEl.textContent = `Showing ${shownRows.length} record(s)`;
+// ===== Guard fallback =====
+if (sessionRole !== "office") {
+  location.replace("user.html");
+} else {
+  loadFailedRegistrations();
 }
-
-refreshBtnEl.onclick = loadData;
-qInputEl.oninput = applySearch;
-
-// AUTO LOAD
-loadData();
