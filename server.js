@@ -2,8 +2,8 @@
 // - Serves static UI from /public
 // - Google Sheets backend
 // - Accounts sheet columns A–M include Province + Position
-// - Fix login to return role + province + position (needed by office.html)
-// - Adds /api/failed-registrations (reads Failed Registration sheet)
+// - Login returns role + province + position
+// - Failed Registration Office Portal: list + update D–L columns (Present Address..Registration Center)
 
 const express = require("express");
 const cors = require("cors");
@@ -232,23 +232,6 @@ async function isAuthorizedAdmin(firstName, middleName, lastName, email) {
   });
 }
 
-// ===== Date helpers for Dec 25, 2025 format =====
-function formatToDec25Style(yyyyMmDd) {
-  if (!yyyyMmDd) return "";
-  const d = new Date(yyyyMmDd + "T00:00:00");
-  if (isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
-}
-function tryParseDecStyleToISO(text) {
-  if (!text) return "";
-  const d = new Date(text);
-  if (isNaN(d.getTime())) return "";
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
 // ========================= ROUTES ==============================
 
 // ✅ Admin dashboard list
@@ -405,195 +388,119 @@ app.post("/api/admin-eligible", async (req, res) => {
   }
 });
 
-// ✅ FAILED REGISTRATION LIST
-// NOTE: Your sheet columns are shifted based on actual displayed data.
-// Current observed mapping from sheet row values (A2:I):
-// B = TRN              (index 1)
-// C = Fullname         (index 2)
-// D = Email Address    (index 3)  <-- observed: shows gmail
-// E = Permanent Address(index 4)  <-- observed: shows address text
-// F = Contact No.      (index 5)  <-- observed: shows numbers
-// G = Province         (index 6)
-
-// ✅ FAILED REGISTRATION LIST (FINAL FIX — COLUMN ORDER VERIFIED)
-// ✅ FAILED REGISTRATION LIST (DYNAMIC HEADER MAPPING - NO MORE SHUFFLE)
+// =============================================================
+// ✅ OFFICE LIST: returns rowNumber + TRN + Fullname + Contact(optional)
+// Province filter uses column E (present province) based on your list
+// Columns you specified:
+// A No. | B TRN | C Fullname | D Present Address | E Province(present) | ... | L Registration Center
+// =============================================================
 app.get("/api/failed-registrations", async (req, res) => {
   try {
     const provinceQ = String(req.query.province || "").trim().toLowerCase();
     const sheets = await getClient();
 
-    // 1) Read header row
-    const headerRes = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${sheetFailed}!A1:Z1`,
-    });
-
-    const headers = (headerRes.data.values?.[0] || []).map(h =>
-      String(h || "").trim().toLowerCase()
-    );
-
-    // Helper: find column index by possible header names
-    const findCol = (candidates) => {
-      for (const name of candidates) {
-        const idx = headers.indexOf(name.toLowerCase());
-        if (idx !== -1) return idx;
-      }
-      return -1;
-    };
-
-    // 2) Detect columns by header names (add more aliases if needed)
-    const idxTRN = findCol(["trn"]);
-    const idxFullname = findCol(["fullname", "full name", "name"]);
-    const idxContact = findCol(["contact no.", "contact", "contact number", "mobile", "mobile no.", "phone"]);
-    const idxEmail = findCol(["email address", "email", "e-mail"]);
-    const idxAddress = findCol(["permanent address", "address"]);
-    const idxProvince = findCol(["province"]);
-
-    // If any critical column missing, return a helpful debug response
-    const missing = [];
-    if (idxTRN === -1) missing.push("TRN");
-    if (idxFullname === -1) missing.push("Fullname");
-    if (idxProvince === -1) missing.push("Province");
-
-    if (missing.length) {
-      return res.status(400).json({
-        success: false,
-        message: `Missing required header(s) in "${sheetFailed}" sheet: ${missing.join(", ")}. Please ensure Row 1 contains these headers.`,
-        detectedHeaders: headers,
-      });
-    }
-
-    // 3) Read data rows
-    const dataRes = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${sheetFailed}!A2:Z`,
-    });
-
-    const rows = dataRes.data.values || [];
-
-    // 4) Map correctly using detected indices
-    const records = rows
-      .filter(r => String(r[idxTRN] || "").trim())
-      .map(r => ({
-        trn: String(r[idxTRN] || "").trim(),
-        fullname: String(r[idxFullname] || "").trim(),
-        contactNo: idxContact !== -1 ? String(r[idxContact] || "").trim() : "",
-        emailAddress: idxEmail !== -1 ? String(r[idxEmail] || "").trim() : "",
-        permanentAddress: idxAddress !== -1 ? String(r[idxAddress] || "").trim() : "",
-        province: String(r[idxProvince] || "").trim(),
-      }));
-
-    const filtered = provinceQ
-      ? records.filter(x => String(x.province || "").trim().toLowerCase() === provinceQ)
-      : records;
-
-    return res.json({ success: true, records: filtered });
-  } catch (err) {
-    console.error("Error in GET /api/failed-registrations:", err.message || err);
-    return res.status(500).json({
-      success: false,
-      message: "Error loading failed registrations.",
-    });
-  }
-});
-
-
-
-// TRN SEARCH
-app.post("/api/trn-search", async (req, res) => {
-  try {
-    const { trn } = req.body || {};
-    const cleanTrn = String(trn || "").trim();
-
-    if (!/^\d{29}$/.test(cleanTrn)) {
-      return res.json({ success: false, message: "Invalid TRN format. Must be 29 digits." });
-    }
-
-    const sheets = await getClient();
+    // Read wide enough range; update columns are D-L but list can be wider
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetFailed}!A2:S`,
+      range: `${sheetFailed}!A2:L`,
     });
 
     const rows = result.data.values || [];
-    const index = rows.findIndex((r) => (r[1] || "").trim() === cleanTrn);
 
-    if (index === -1) {
-      return res.json({ success: false, message: "TRN not found in Failed Registration." });
-    }
+    const records = rows
+      .map((r, i) => {
+        const rowNumber = i + 2;
 
-    const row = rows[index] || [];
-    const rowNumber = index + 2;
+        const trn = String(r[1] || "").trim();       // B
+        const fullname = String(r[2] || "").trim();  // C
+        if (!trn) return null;
 
-    const record = {
-      rowNumber,
-      trn: row[1] || "",
-      fullname: row[2] || "",
-      permanentAddress: row[3] || "",
-      province: row[4] || "",
-      recaptureStatus: row[11] || "",
-      recaptureSchedule: row[12] || "",
-      status: row[16] || "",
-      newTrn: row[17] || "",
-      dateOfRecapture: row[18] || "",
-      isoDateRecapture: tryParseDecStyleToISO(row[18] || ""),
-    };
+        const presentAddress = String(r[3] || "").trim();  // D
+        const provincePresent = String(r[4] || "").trim(); // E
 
-    return res.json({ success: true, record });
+        if (provinceQ && provincePresent.toLowerCase() !== provinceQ) return null;
+
+        // NOTE: Contact is not in your D-L update columns.
+        // If you store contact somewhere else, you can adjust here.
+        // For now we keep it blank (or you can display email/contact columns if exist).
+        return {
+          rowNumber,
+          trn,
+          fullname,
+          contactNo: "", // optional, display only
+          presentAddress,
+          province: provincePresent,
+        };
+      })
+      .filter(Boolean);
+
+    return res.json({ success: true, records });
   } catch (err) {
-    console.error("Error in POST /api/trn-search:", err.message || err);
-    return res.status(500).json({ success: false, message: "Server error while searching TRN." });
+    console.error("Error in GET /api/failed-registrations:", err.message || err);
+    return res.status(500).json({ success: false, message: "Error loading failed registrations." });
   }
 });
 
-// TRN UPDATE
-app.post("/api/trn-update", async (req, res) => {
+// =============================================================
+// ✅ OFFICE UPDATE: updates ONLY D–L for a given rowNumber
+// D Present Address
+// E Province (present)
+// F Date Contacted
+// G Means of Notification
+// H Recapture Status
+// I Recapture Schedule
+// J Province (registration)
+// K City/Municipality
+// L Registration Center
+// =============================================================
+app.post("/api/failed-registration-update", async (req, res) => {
   try {
-    const { rowNumber, trn, status, newTrn, dateOfRecapture } = req.body || {};
+    const {
+      rowNumber,
+      presentAddress,
+      provincePresent,
+      dateContacted,
+      meansOfNotification,
+      recaptureStatus,
+      recaptureSchedule,
+      provinceRegistration,
+      cityMunicipality,
+      registrationCenter,
+    } = req.body || {};
+
     const rn = Number(rowNumber);
-
     if (!rn || rn < 2) return res.json({ success: false, message: "Invalid rowNumber." });
-
-    const cleanTrn = String(trn || "").trim();
-    if (!/^\d{29}$/.test(cleanTrn)) return res.json({ success: false, message: "Invalid TRN format." });
-
-    const cleanStatus = String(status || "").trim();
-    if (!cleanStatus) return res.json({ success: false, message: "Status is required." });
-
-    const cleanNewTrn = String(newTrn || "").trim();
-    if (cleanNewTrn && !/^\d{29}$/.test(cleanNewTrn)) {
-      return res.json({ success: false, message: "NEW TRN must be 29 digits (or leave blank)." });
-    }
 
     const sheets = await getClient();
 
-    const check = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${sheetFailed}!B${rn}:B${rn}`,
-    });
-    const foundTrn = (((check.data.values || [])[0] || [])[0] || "").trim();
-    if (foundTrn !== cleanTrn) {
-      return res.json({ success: false, message: "Row mismatch. Please search again before saving." });
-    }
-
-    const formattedDate = formatToDec25Style(String(dateOfRecapture || "").trim());
-
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${sheetFailed}!Q${rn}:S${rn}`,
+      range: `${sheetFailed}!D${rn}:L${rn}`,
       valueInputOption: "RAW",
-      requestBody: { values: [[cleanStatus, cleanNewTrn, formattedDate]] },
+      requestBody: {
+        values: [[
+          String(presentAddress || "").trim(),
+          String(provincePresent || "").trim(),
+          String(dateContacted || "").trim(),
+          String(meansOfNotification || "").trim(),
+          String(recaptureStatus || "").trim(),
+          String(recaptureSchedule || "").trim(),
+          String(provinceRegistration || "").trim(),
+          String(cityMunicipality || "").trim(),
+          String(registrationCenter || "").trim(),
+        ]],
+      },
     });
 
-    await addLog("TRN Update", "system", `TRN: ${cleanTrn} | Row: ${rn} | QRS updated`);
+    await addLog("FailedReg Update", "system", `Row ${rn} updated D-L`);
     return res.json({ success: true });
   } catch (err) {
-    console.error("Error in POST /api/trn-update:", err.message || err);
-    return res.status(500).json({ success: false, message: "Server error while saving update." });
+    console.error("Error in POST /api/failed-registration-update:", err.message || err);
+    return res.status(500).json({ success: false, message: "Server error while updating record." });
   }
 });
 
-// ✅ 404 for API routes only
+// ✅ 404
 app.use((req, res) => {
   res.status(404).json({ success: false, message: `Route not found: ${req.method} ${req.originalUrl}` });
 });
@@ -606,6 +513,3 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("🔥 Server running on port " + PORT));
-
-
-
