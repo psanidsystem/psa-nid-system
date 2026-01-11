@@ -370,17 +370,26 @@ function isUpdatedFromHP(row) {
   return false;
 }
 
-// =============================================================
-// ✅ OFFICE LIST (Province filter uses COLUMN G index 6)
-// =============================================================
+// ✅ OFFICE LIST
+// Province filter uses COLUMN G (index 6)
+// A No.
+// B TRN
+// C Fullname
+// D Contact No.
+// E Email Address
+// F Permanent Address
+// G Province   ✅ BASIS
+// H–P update columns
+// Q (optional) UpdatedAt / marker (if naa)
 app.get("/api/failed-registrations", async (req, res) => {
   try {
     const provinceQ = String(req.query.province || "").trim().toLowerCase();
     const sheets = await getClient();
 
+    // read up to Q para ma-check nato ang updatedAt if naa
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetFailed}!A2:P`,
+      range: `${sheetFailed}!A2:Q`,
     });
 
     const rows = result.data.values || [];
@@ -395,10 +404,25 @@ app.get("/api/failed-registrations", async (req, res) => {
 
         const contactNo = String(r[3] || "").trim(); // D
         const province = String(r[6] || "").trim();  // ✅ G
-
         if (provinceQ && province.toLowerCase() !== provinceQ) return null;
 
-        return { rowNumber, trn, fullname, contactNo, province, updated: isUpdatedFromHP(r) };
+        // ✅ Updated only if any of H–P has value OR Q has value
+        const hp = [
+          r[7],  // H presentAddress
+          r[8],  // I provincePresent
+          r[9],  // J dateContacted
+          r[10], // K means
+          r[11], // L recaptureStatus
+          r[12], // M recaptureSchedule
+          r[13], // N provinceRegistration
+          r[14], // O cityMunicipality
+          r[15], // P registrationCenter
+        ].map(x => String(x || "").trim());
+
+        const updatedAt = String(r[16] || "").trim(); // Q (optional)
+        const updated = hp.some(v => v.length > 0) || !!updatedAt;
+
+        return { rowNumber, trn, fullname, contactNo, province, updated };
       })
       .filter(Boolean);
 
@@ -408,6 +432,7 @@ app.get("/api/failed-registrations", async (req, res) => {
     return res.status(500).json({ success: false, message: "Error loading failed registrations." });
   }
 });
+
 
 // =============================================================
 // ✅ GET SINGLE ROW (autofill update panel) reads A:P
@@ -509,3 +534,4 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("🔥 Server running on port " + PORT));
+
