@@ -39,7 +39,7 @@ function doLogout() {
 
 logoutBtnEl && logoutBtnEl.addEventListener("click", doLogout);
 
-// ===== Show header info =====
+// ===== Header info =====
 if (userEmailEl) userEmailEl.textContent = sessionEmail || "—";
 
 if (provinceTitleEl) {
@@ -128,9 +128,10 @@ async function loadFailedRegistrations() {
     const r = await fetch(url);
     const d = await r.json();
 
-    if (!d.success) {
+    if (!d || !d.success) {
       allRows = [];
-      renderRows(allRows);
+      if (tbodyEl) tbodyEl.innerHTML = `<tr><td colspan="6" class="muted">Failed to load records.</td></tr>`;
+      setCount(0);
       return;
     }
 
@@ -139,7 +140,8 @@ async function loadFailedRegistrations() {
   } catch (e) {
     console.error("loadFailedRegistrations error:", e);
     allRows = [];
-    renderRows(allRows);
+    if (tbodyEl) tbodyEl.innerHTML = `<tr><td colspan="6" class="muted">Network/server error.</td></tr>`;
+    setCount(0);
   } finally {
     if (refreshBtnEl) refreshBtnEl.classList.remove("loading");
     if (refreshBtnEl) refreshBtnEl.disabled = false;
