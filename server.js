@@ -406,13 +406,15 @@ app.post("/api/admin-eligible", async (req, res) => {
 });
 
 // ✅ FAILED REGISTRATION LIST
-// Assumed columns (A2:I):
-// B=TRN (index 1)
-// C=Fullname (index 2)
-// D=Permanent Address (index 3)
-// E=Contact No (index 4)  ✅ (added to match office.js table)
-// F=Email Address (index 5) ✅ (added to match office.js table)
-// G=Province (index 6)
+// NOTE: Your sheet columns are shifted based on actual displayed data.
+// Current observed mapping from sheet row values (A2:I):
+// B = TRN              (index 1)
+// C = Fullname         (index 2)
+// D = Email Address    (index 3)  <-- observed: shows gmail
+// E = Permanent Address(index 4)  <-- observed: shows address text
+// F = Contact No.      (index 5)  <-- observed: shows numbers
+// G = Province         (index 6)
+
 app.get("/api/failed-registrations", async (req, res) => {
   try {
     const provinceQ = String(req.query.province || "").trim().toLowerCase();
@@ -430,10 +432,13 @@ app.get("/api/failed-registrations", async (req, res) => {
       .map((r) => ({
         trn: (r[1] || "").trim(),               // B
         fullname: (r[2] || "").trim(),          // C
-        permanentAddress: (r[3] || "").trim(),  // D
-        contactNo: (r[4] || "").trim(),         // E ✅
-        emailAddress: (r[5] || "").trim(),      // F ✅
-        province: (r[6] || "").trim(),          // G ✅
+
+        // ✅ FIXED: proper alignment based on your screenshot
+        emailAddress: (r[3] || "").trim(),      // D (gmail)
+        permanentAddress: (r[4] || "").trim(),  // E (address)
+        contactNo: (r[5] || "").trim(),         // F (number)
+
+        province: (r[6] || "").trim(),          // G
       }));
 
     const filtered = provinceQ
@@ -446,6 +451,7 @@ app.get("/api/failed-registrations", async (req, res) => {
     return res.status(500).json({ success: false, message: "Error loading failed registrations." });
   }
 });
+
 
 // TRN SEARCH
 app.post("/api/trn-search", async (req, res) => {
@@ -554,3 +560,4 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("🔥 Server running on port " + PORT));
+
