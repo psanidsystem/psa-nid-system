@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PSA • User Portal</title>
+  <title>PSA • User Portal (Search)</title>
   <style>
     :root{
       --primary:#0033a0;
@@ -42,12 +42,13 @@
       box-shadow: 0 2px 10px rgba(0,0,0,0.18);
     }
     .topbar-inner{
-      max-width: 1400px;
+      max-width: 1100px;
       margin: 0 auto;
       display:flex;
       align-items:center;
       justify-content: space-between;
       gap: 14px;
+      flex-wrap: wrap;
     }
     .brand{
       display:flex;
@@ -78,6 +79,15 @@
       font-size: 12px;
       opacity: 0.9;
     }
+
+    .right-tools{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
     .user-pill{
       display:flex;
       align-items:center;
@@ -96,98 +106,25 @@
       box-shadow: 0 0 0 3px rgba(34,197,94,0.22);
     }
 
-    /* Layout */
-    .layout{
-      max-width: 1400px;
+    .logout-btn{
+      text-decoration:none;
+      background: rgba(255,255,255,0.16);
+      border: 1px solid rgba(255,255,255,0.22);
+      color:#fff;
+      font-weight: 800;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+    }
+    .logout-btn:hover{ filter: brightness(0.98); }
+
+    /* Page layout */
+    .page{
+      max-width: 1100px;
       margin: 18px auto;
       padding: 0 14px;
-      display: grid;
-      grid-template-columns: 260px 1fr;
-      gap: 16px;
     }
 
-    /* Sidebar */
-    .sidebar{
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 14px;
-      height: calc(100vh - 110px);
-      position: sticky;
-      top: 78px;
-      overflow:auto;
-    }
-    .side-title{
-      font-weight: 800;
-      color: var(--primary);
-      margin: 4px 0 12px;
-      font-size: 14px;
-    }
-    .nav{
-      display:flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .nav button{
-      width:100%;
-      text-align:left;
-      border: 1px solid var(--border);
-      background:#f8fbff;
-      padding: 10px 12px;
-      border-radius: 12px;
-      cursor:pointer;
-      font-weight: 700;
-      color:#0f172a;
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 10px;
-      transition: transform .06s ease, background .2s ease, border .2s ease;
-    }
-    .nav button:hover{
-      background:#eef5ff;
-      border-color:#cfe0ff;
-    }
-    .nav button:active{
-      transform: translateY(1px);
-    }
-    .nav button.active{
-      background: linear-gradient(90deg, rgba(0,51,160,0.12), rgba(0,86,214,0.10));
-      border-color: rgba(0,51,160,0.28);
-      color: var(--primary);
-    }
-    .nav small{
-      color: var(--muted);
-      font-weight: 700;
-    }
-    .logout{
-      margin-top: 12px;
-      border-top: 1px dashed var(--border);
-      padding-top: 12px;
-    }
-    .logout a{
-      display:block;
-      text-decoration:none;
-      text-align:center;
-      background:#fff;
-      border: 1px solid #f1b4b4;
-      color:#b91c1c;
-      font-weight: 800;
-      padding: 10px 12px;
-      border-radius: 12px;
-    }
-    .logout a:hover{
-      background:#fff5f5;
-    }
-
-    /* Main */
-    .main{
-      display:flex;
-      flex-direction: column;
-      gap: 16px;
-      min-height: calc(100vh - 110px);
-    }
     .card{
       background: var(--card);
       border: 1px solid var(--border);
@@ -195,30 +132,27 @@
       box-shadow: var(--shadow);
       padding: 16px;
     }
-    .card h2{
-      margin: 0 0 6px;
-      color: var(--primary);
-      font-size: 18px;
-    }
-    .card p{
-      margin: 0;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
-    }
 
-    /* Sections */
-    .section{ display:none; }
-    .section.active{ display:block; }
-
-    /* TRN Search UI */
-    .search-header{
+    .title{
       display:flex;
       align-items:flex-start;
       justify-content: space-between;
       gap: 12px;
       flex-wrap: wrap;
     }
+    .title h2{
+      margin:0;
+      color: var(--primary);
+      font-size: 18px;
+    }
+    .title p{
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* TRN Search UI */
     .search-row{
       margin-top: 12px;
       display:flex;
@@ -226,19 +160,35 @@
       align-items:center;
       flex-wrap: wrap;
     }
-    .search-input{
+
+    .field{
       flex: 1;
       min-width: 240px;
+      display:flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .field label{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .search-input, .field input, .field select{
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 12px 12px;
       font-size: 14px;
       outline: none;
+      background:#fff;
     }
-    .search-input:focus{
+    .search-input:focus,
+    .field input:focus,
+    .field select:focus{
       border-color: rgba(0,51,160,0.35);
       box-shadow: 0 0 0 3px rgba(0,51,160,0.12);
     }
+
     .btn{
       border: none;
       border-radius: 12px;
@@ -251,6 +201,7 @@
       display:inline-flex;
       align-items:center;
       gap:10px;
+      height: 44px;
     }
     .btn:hover{ filter: brightness(0.96); }
     .btn.secondary{
@@ -275,10 +226,7 @@
       display:none;
     }
     .btn.loading .spinner{ display:inline-block; }
-
-    @keyframes spin{
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin{ to { transform: rotate(360deg); } }
 
     .alert{
       margin-top: 12px;
@@ -304,8 +252,11 @@
     }
 
     /* Detail summary */
+    .detail-wrap{
+      margin-top: 14px;
+      display:none;
+    }
     .detail-grid{
-      margin-top: 12px;
       display:grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
@@ -330,33 +281,20 @@
     }
 
     /* Update fields */
+    .update-card{
+      margin-top: 14px;
+      padding: 14px;
+    }
+    .update-card h3{
+      margin:0 0 6px;
+      color: var(--primary);
+      font-size: 16px;
+    }
     .form-grid{
       margin-top: 12px;
       display:grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
-    }
-    .field{
-      display:flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .field label{
-      font-size: 12px;
-      color: var(--muted);
-      font-weight: 800;
-    }
-    .field input, .field select{
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px 12px;
-      font-size: 14px;
-      outline:none;
-      background:#fff;
-    }
-    .field input:focus, .field select:focus{
-      border-color: rgba(0,51,160,0.35);
-      box-shadow: 0 0 0 3px rgba(0,51,160,0.12);
     }
     .actions{
       margin-top: 12px;
@@ -366,15 +304,23 @@
       align-items:center;
     }
 
+    .hint{
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+      line-height: 1.45;
+    }
+
     /* Responsive */
-    @media (max-width: 950px){
-      .layout{ grid-template-columns: 1fr; }
-      .sidebar{ height:auto; position: relative; top:auto; }
+    @media (max-width: 900px){
       .detail-grid{ grid-template-columns: 1fr; }
       .form-grid{ grid-template-columns: 1fr; }
+      .btn{ width: 100%; justify-content: center; }
+      .search-row{ flex-direction: column; align-items: stretch; }
     }
   </style>
 </head>
+
 <body>
 
   <!-- ✅ AUTH GUARD (must be first) -->
@@ -383,17 +329,8 @@
       const email = localStorage.getItem("email");
       const role = localStorage.getItem("role");
 
-      // require login
-      if (!email) {
-        location.replace("index.html");
-        return;
-      }
-
-      // require correct role (user)
-      if (role !== "user") {
-        location.replace("index.html");
-        return;
-      }
+      if (!email) { location.replace("index.html"); return; }
+      if (role !== "user") { location.replace("index.html"); return; }
     })();
   </script>
 
@@ -407,136 +344,128 @@
         </div>
         <div class="brand-text">
           <h1>PSA • National ID System</h1>
-          <p>Standard User View</p>
+          <p>User Portal • TRN Search</p>
         </div>
       </div>
 
-      <div class="user-pill" title="Logged in user">
-        <span class="dot"></span>
-        <span id="userEmail">user@example.gov.ph</span>
+      <div class="right-tools">
+        <div class="user-pill" title="Logged in user">
+          <span class="dot"></span>
+          <span id="userEmail">user@example.gov.ph</span>
+        </div>
+        <a class="logout-btn" href="index.html" id="logoutLink">Logout</a>
       </div>
     </div>
   </div>
 
-  <div class="layout">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-      <div class="side-title">User Menu</div>
-
-      <nav class="nav">
-        <button id="btnHome" class="active" type="button">
-          Home <small>Overview</small>
-        </button>
-
-        <button id="btnSearch" type="button">
-          Search <small>TRN Lookup</small>
-        </button>
-
-       
-      </nav>
-
-      <div class="logout">
-        <a href="index.html" id="logoutLink">← Logout</a>
+  <div class="page">
+    <section class="card" aria-labelledby="trnTitle">
+      <div class="title">
+        <div>
+          <h2 id="trnTitle">TRN Search</h2>
+          <p>Enter the <b>29-digit TRN</b> to view details and update recapture fields.</p>
+          <div class="hint">Tip: Numbers only. The input will automatically remove non-digits.</div>
+        </div>
       </div>
-    </aside>
 
-    <!-- Main -->
-    <main class="main">
-      <!-- HOME -->
-      <section id="homeSection" class="section active">
-        <div class="card">
-          <h2>Welcome!</h2>
-          <p>You are logged in as a registered user. This portal is intended for official PhilSys transactions.</p>
+      <div class="search-row">
+        <div class="field">
+          <label for="trnInput">TRN (29 digits)</label>
+          <input
+            id="trnInput"
+            class="search-input"
+            type="text"
+            inputmode="numeric"
+            placeholder="29-digit TRN"
+            maxlength="29"
+            autocomplete="off"
+          />
         </div>
 
-        <div class="card">
-          <h2>Your PhilSys Information</h2>
-          <p>This section will display your personal data and status in future updates.</p>
-        </div>
-      </section>
+        <button class="btn" id="searchBtn" type="button">
+          <span class="spinner" id="searchSpinner"></span>
+          <span>Search</span>
+        </button>
 
-      <!-- SEARCH -->
-      <section id="searchSection" class="section">
-        <div class="card">
-          <div class="search-header">
-            <div>
-              <h2 style="margin:0;color:var(--primary);">TRN Search</h2>
-              <p style="margin-top:6px;">Enter the <b>29-digit TRN</b></p>
+        <button class="btn secondary" id="clearBtn" type="button">Clear</button>
+      </div>
+
+      <!-- Alerts (aria-live for accessibility) -->
+      <div id="msgOk" class="alert ok" role="status" aria-live="polite"></div>
+      <div id="msgErr" class="alert err" role="alert" aria-live="assertive"></div>
+
+      <!-- Found detail -->
+      <div id="detailWrap" class="detail-wrap">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="label">Fullname</div>
+            <div id="fullNameVal" class="value">—</div>
+          </div>
+
+          <div class="detail-item">
+            <div class="label">Permanent Address</div>
+            <div id="permAddrVal" class="value">—</div>
+          </div>
+
+          <div class="detail-item">
+            <div class="label">Recapture Status</div>
+            <div id="recapStatusVal" class="value">—</div>
+          </div>
+
+          <div class="detail-item">
+            <div class="label">Recapture Schedule</div>
+            <div id="recapSchedVal" class="value">—</div>
+          </div>
+        </div>
+
+        <div class="card update-card">
+          <h3>Update Fields</h3>
+
+          <div class="form-grid">
+            <div class="field">
+              <label for="statusSelect">Status <span style="color:#b91c1c;">*</span></label>
+              <select id="statusSelect" required>
+                <option value="">-- Select Status --</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="newTrnInput">New TRN (29 digits)</label>
+              <input
+                id="newTrnInput"
+                type="text"
+                inputmode="numeric"
+                maxlength="29"
+                placeholder="Enter (29 digits)"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="field" style="grid-column: 1 / -1;">
+              <label for="dateRecapInput">Date of Recapture</label>
+              <input id="dateRecapInput" type="date"/>
             </div>
           </div>
 
-          <div class="search-row">
-            <input id="trnInput" class="search-input" type="text" inputmode="numeric" placeholder="29-digit TRN" maxlength="29"/>
-            <button class="btn" id="searchBtn" type="button">Search</button>
-            <button class="btn secondary" id="clearBtn" type="button">Clear</button>
+          <div class="actions">
+            <button class="btn" id="saveBtn" type="button">
+              <span class="spinner" id="saveSpinner"></span>
+              <span id="saveText">Save</span>
+            </button>
           </div>
-
-          <div id="msgOk" class="alert ok"></div>
-          <div id="msgErr" class="alert err"></div>
-
-          <!-- Found detail -->
-          <div id="detailWrap" style="display:none;">
-            <div class="detail-grid">
-              <div class="detail-item">
-                <div class="label">Fullname</div>
-                <div id="fullNameVal" class="value">—</div>
-              </div>
-
-              <div class="detail-item">
-                <div class="label">Permanent Address</div>
-                <div id="permAddrVal" class="value">—</div>
-              </div>
-
-              <div class="detail-item">
-                <div class="label">Recapture Status</div>
-                <div id="recapStatusVal" class="value">—</div>
-              </div>
-
-              <div class="detail-item">
-                <div class="label">Recapture Schedule</div>
-                <div id="recapSchedVal" class="value">—</div>
-              </div>
-            </div>
-
-            <div class="card" style="margin-top:14px;padding:14px;">
-              <h2 style="margin:0 0 6px;color:var(--primary);font-size:16px;">Update Fields</h2>
-
-              <div class="form-grid">
-                <div class="field">
-                  <label for="statusSelect">Status <span style="color:#b91c1c;">*</span></label>
-                  <select id="statusSelect" required>
-                    <option value="">-- Select Status --</option>
-                  </select>
-                </div>
-
-                <div class="field">
-                  <label for="newTrnInput">New TRN (29 digits)</label>
-                  <input id="newTrnInput" type="text" inputmode="numeric" maxlength="29" placeholder="Enter (29 digits)"/>
-                </div>
-
-                <div class="field" style="grid-column: 1 / -1;">
-                  <label for="dateRecapInput">Date of Recapture</label>
-                  <input id="dateRecapInput" type="date"/>
-                </div>
-              </div>
-
-              <div class="actions">
-                <button class="btn" id="saveBtn" type="button">
-                  <span class="spinner" id="saveSpinner"></span>
-                  <span id="saveText">Save</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
         </div>
-      </section>
-
-    </main>
+      </div>
+    </section>
   </div>
 
   <script src="assets/js/user.js?v=5"></script>
+
   <script>
+    // Show logged in user email
+    const email = localStorage.getItem("email") || "—";
+    const userEmailEl = document.getElementById("userEmail");
+    if (userEmailEl) userEmailEl.textContent = email;
+
     // ✅ Proper logout: clear + replace (para di maka back)
     const logoutLink = document.getElementById("logoutLink");
     logoutLink && logoutLink.addEventListener("click", (e) => {
@@ -545,7 +474,28 @@
       localStorage.removeItem("role");
       location.replace("index.html");
     });
+
+    // ✅ Digits-only helpers (client-side UX improvement)
+    function digitsOnly(el){
+      if (!el) return;
+      el.addEventListener("input", () => {
+        el.value = (el.value || "").replace(/\D/g, "").slice(0, el.maxLength || 999);
+      });
+      el.addEventListener("paste", () => {
+        setTimeout(() => {
+          el.value = (el.value || "").replace(/\D/g, "").slice(0, el.maxLength || 999);
+        }, 0);
+      });
+    }
+    digitsOnly(document.getElementById("trnInput"));
+    digitsOnly(document.getElementById("newTrnInput"));
+
+    // Optional: Enter key = search
+    const trnInput = document.getElementById("trnInput");
+    const searchBtn = document.getElementById("searchBtn");
+    trnInput && searchBtn && trnInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") searchBtn.click();
+    });
   </script>
 </body>
 </html>
-
