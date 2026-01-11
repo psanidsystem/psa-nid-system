@@ -23,7 +23,7 @@ const selTrnEl = document.getElementById("selTrn");
 const selNameEl = document.getElementById("selName");
 const selContactEl = document.getElementById("selContact");
 
-// Left panel inputs (D-L)
+// Left panel inputs (H-P)
 const presentAddressEl = document.getElementById("presentAddress");
 const provincePresentEl = document.getElementById("provincePresent");
 const dateContactedEl = document.getElementById("dateContacted");
@@ -77,9 +77,9 @@ function setSelected(rec) {
   if (selNameEl) selNameEl.textContent = selected?.fullname || "—";
   if (selContactEl) selContactEl.textContent = selected?.contactNo || "—";
 
-  if (updateMsgEl) updateMsgEl.textContent = selected ? "Fill the fields then click Update." : "Select a row to update.";
+  if (updateMsgEl) updateMsgEl.textContent = selected ? "Fill fields then click Update." : "Select a row to update.";
 
-  // clear inputs every select (optional)
+  // clear inputs (optional)
   if (presentAddressEl) presentAddressEl.value = "";
   if (provincePresentEl) provincePresentEl.value = "";
   if (dateContactedEl) dateContactedEl.value = "";
@@ -97,7 +97,7 @@ function renderRows(rows) {
   tbodyEl.innerHTML = "";
 
   if (!rows || rows.length === 0) {
-    tbodyEl.innerHTML = `<tr><td colspan="3" class="muted">No records found.</td></tr>`;
+    tbodyEl.innerHTML = `<tr><td colspan="6" class="muted">No records found.</td></tr>`;
     setCount(0);
     setSelected(null);
     return;
@@ -106,19 +106,17 @@ function renderRows(rows) {
   setCount(rows.length);
 
   for (const r of rows) {
-    const trn = escapeHtml(r.trn || "");
-    const fullname = escapeHtml(r.fullname || "");
-    const province = escapeHtml(r.province || "");
-
     const tr = document.createElement("tr");
     tr.className = "clickable";
     tr.style.cursor = "pointer";
-    tr.title = "Click to select";
 
     tr.innerHTML = `
-      <td>${trn}</td>
-      <td>${fullname}</td>
-      <td>${province}</td>
+      <td>${escapeHtml(r.trn)}</td>
+      <td>${escapeHtml(r.fullname)}</td>
+      <td>${escapeHtml(r.contactNo)}</td>
+      <td>${escapeHtml(r.emailAddress)}</td>
+      <td>${escapeHtml(r.permanentAddress)}</td>
+      <td>${escapeHtml(r.province)}</td>
     `;
 
     tr.addEventListener("click", () => {
@@ -133,13 +131,17 @@ function renderRows(rows) {
 
 function applySearch() {
   const q = (qInputEl?.value || "").trim().toLowerCase();
-  if (!q) {
-    renderRows(allRows);
-    return;
-  }
+  if (!q) return renderRows(allRows);
 
   const filtered = allRows.filter((r) => {
-    const hay = [r.trn, r.fullname, r.province].join(" ").toLowerCase();
+    const hay = [
+      r.trn,
+      r.fullname,
+      r.contactNo,
+      r.emailAddress,
+      r.permanentAddress,
+      r.province
+    ].join(" ").toLowerCase();
     return hay.includes(q);
   });
 
@@ -149,14 +151,14 @@ function applySearch() {
 // ===== Fetch list =====
 async function loadFailedRegistrations() {
   if (!sessionProvince) {
-    if (tbodyEl) tbodyEl.innerHTML = `<tr><td colspan="3" class="muted">No province found in session. Please login again.</td></tr>`;
+    tbodyEl.innerHTML = `<tr><td colspan="6" class="muted">No province found in session. Please login again.</td></tr>`;
     setCount(0);
     setSelected(null);
     return;
   }
 
-  if (refreshBtnEl) refreshBtnEl.disabled = true;
-  if (refreshSpinnerEl) refreshSpinnerEl.style.display = "inline-block";
+  refreshBtnEl.disabled = true;
+  refreshSpinnerEl.style.display = "inline-block";
 
   try {
     const url = API + "/api/failed-registrations?province=" + encodeURIComponent(sessionProvince);
@@ -172,37 +174,37 @@ async function loadFailedRegistrations() {
     allRows = Array.isArray(d.records) ? d.records : [];
     applySearch();
   } catch (e) {
-    console.error("loadFailedRegistrations error:", e);
+    console.error(e);
     allRows = [];
     renderRows(allRows);
   } finally {
-    if (refreshBtnEl) refreshBtnEl.disabled = false;
-    if (refreshSpinnerEl) refreshSpinnerEl.style.display = "none";
+    refreshBtnEl.disabled = false;
+    refreshSpinnerEl.style.display = "none";
   }
 }
 
-// ===== Submit Update (writes D–L) =====
+// ===== Update (H-P) =====
 async function submitUpdate() {
   if (!selected?.rowNumber) {
-    if (updateMsgEl) updateMsgEl.textContent = "Please select a record first.";
+    updateMsgEl.textContent = "Please select a record first.";
     return;
   }
 
   const payload = {
     rowNumber: selected.rowNumber,
-    presentAddress: presentAddressEl?.value || "",
-    provincePresent: provincePresentEl?.value || "",
-    dateContacted: dateContactedEl?.value || "",
-    meansOfNotification: meansOfNotificationEl?.value || "",
-    recaptureStatus: recaptureStatusEl?.value || "",
-    recaptureSchedule: recaptureScheduleEl?.value || "",
-    provinceRegistration: provinceRegistrationEl?.value || "",
-    cityMunicipality: cityMunicipalityEl?.value || "",
-    registrationCenter: registrationCenterEl?.value || "",
+    presentAddress: presentAddressEl.value || "",
+    provincePresent: provincePresentEl.value || "",
+    dateContacted: dateContactedEl.value || "",
+    meansOfNotification: meansOfNotificationEl.value || "",
+    recaptureStatus: recaptureStatusEl.value || "",
+    recaptureSchedule: recaptureScheduleEl.value || "",
+    provinceRegistration: provinceRegistrationEl.value || "",
+    cityMunicipality: cityMunicipalityEl.value || "",
+    registrationCenter: registrationCenterEl.value || "",
   };
 
-  if (updateBtnEl) updateBtnEl.disabled = true;
-  if (updateMsgEl) updateMsgEl.textContent = "Updating...";
+  updateBtnEl.disabled = true;
+  updateMsgEl.textContent = "Updating...";
 
   try {
     const r = await fetch(API + "/api/failed-registration-update", {
@@ -213,24 +215,24 @@ async function submitUpdate() {
 
     const d = await r.json();
     if (!d || !d.success) {
-      if (updateMsgEl) updateMsgEl.textContent = d?.message || "Update failed.";
+      updateMsgEl.textContent = d?.message || "Update failed.";
       return;
     }
 
-    if (updateMsgEl) updateMsgEl.textContent = "✅ Updated successfully!";
+    updateMsgEl.textContent = "✅ Updated successfully!";
     await loadFailedRegistrations();
   } catch (e) {
-    console.error("submitUpdate error:", e);
-    if (updateMsgEl) updateMsgEl.textContent = "Network/server error while updating.";
+    console.error(e);
+    updateMsgEl.textContent = "Network/server error.";
   } finally {
-    if (updateBtnEl) updateBtnEl.disabled = false;
+    updateBtnEl.disabled = false;
   }
 }
 
 // ===== Events =====
-refreshBtnEl && refreshBtnEl.addEventListener("click", loadFailedRegistrations);
-qInputEl && qInputEl.addEventListener("input", applySearch);
-updateBtnEl && updateBtnEl.addEventListener("click", submitUpdate);
+refreshBtnEl.addEventListener("click", loadFailedRegistrations);
+qInputEl.addEventListener("input", applySearch);
+updateBtnEl.addEventListener("click", submitUpdate);
 
 // ===== Guard =====
 if (sessionRole !== "office") {
