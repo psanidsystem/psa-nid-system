@@ -2,8 +2,8 @@
 // - Serves static UI from /public
 // - Google Sheets backend
 // - Accounts sheet columns A–M include Province + Position
-// - Login returns role + province + position
-// - Failed Registration Office Portal: list + update D–L columns (Present Address..Registration Center)
+// - Login returns role + province + position (needed by office.html)
+// - Failed Registration Office: list by Province(G) + update H:P
 
 const express = require("express");
 const cors = require("cors");
@@ -234,116 +234,6 @@ async function isAuthorizedAdmin(firstName, middleName, lastName, email) {
 
 // ========================= ROUTES ==============================
 
-// ✅ Admin dashboard list
-app.get("/api/accounts", async (req, res) => {
-  try {
-    const accounts = await loadAccounts();
-    const safe = accounts.map(({ password, ...rest }) => rest);
-    res.json(safe);
-  } catch (err) {
-    console.error("Error in GET /api/accounts:", err.message || err);
-    res.status(500).json({ success: false, message: "Error loading accounts." });
-  }
-});
-
-// GET provinces (Dropdown!D2:D)
-app.get("/api/provinces", async (req, res) => {
-  try {
-    const sheets = await getClient();
-    const result = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${sheetDropdown}!D2:D`,
-    });
-
-    const provinces = (result.data.values || [])
-      .map((r) => (r[0] || "").trim())
-      .filter(Boolean);
-
-    res.json({ success: true, provinces: [...new Set(provinces)] });
-  } catch (err) {
-    console.error("Error in GET /api/provinces:", err.message || err);
-    res.status(500).json({ success: false, message: "Error reading provinces." });
-  }
-});
-
-// GET positions (Dropdown!B2:B)
-app.get("/api/positions", async (req, res) => {
-  try {
-    const sheets = await getClient();
-    const result = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${sheetDropdown}!B2:B`,
-    });
-
-    const positions = (result.data.values || [])
-      .map((r) => (r[0] || "").trim())
-      .filter(Boolean);
-
-    res.json({ success: true, positions: [...new Set(positions)] });
-  } catch (err) {
-    console.error("Error in GET /api/positions:", err.message || err);
-    res.status(500).json({ success: false, message: "Error reading positions." });
-  }
-});
-
-// GET status options (Dropdown!C2:C)
-app.get("/api/status-options", async (req, res) => {
-  try {
-    const sheets = await getClient();
-    const result = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${sheetDropdown}!C2:C`,
-    });
-
-    const statuses = (result.data.values || [])
-      .map((r) => (r[0] || "").trim())
-      .filter(Boolean);
-
-    res.json({ success: true, statuses: [...new Set(statuses)] });
-  } catch (err) {
-    console.error("Error in GET /api/status-options:", err.message || err);
-    res.status(500).json({ success: false, message: "Error reading status options." });
-  }
-});
-
-// REGISTER
-app.post("/api/register", async (req, res) => {
-  const {
-    email, password, role,
-    firstName, middleName, lastName,
-    viber, province, position
-  } = req.body || {};
-
-  if (!email || !password || !role || !firstName || !lastName || !viber || !province || !position) {
-    return res.json({ success: false, message: "Missing required fields." });
-  }
-
-  try {
-    const accounts = await loadAccounts();
-
-    if (accounts.some((a) => a.email.toLowerCase() === email.toLowerCase())) {
-      return res.json({ success: false, message: "Email already exists" });
-    }
-
-    if (role === "admin") {
-      const allowed = await isAuthorizedAdmin(firstName, middleName, lastName, email);
-      if (!allowed) {
-        await addLog("Admin Register Blocked", email, "Not in Admin sheet");
-        return res.json({
-          success: false,
-          message: "Dili ka pwede mo-set og Admin Role (not authorized).",
-        });
-      }
-    }
-
-    await saveAccount({ email, password, role, firstName, middleName, lastName, viber, province, position });
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Error in POST /api/register:", err.message || err);
-    res.status(500).json({ success: false, message: "Server error." });
-  }
-});
-
 // ✅ LOGIN (returns role + province + position)
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body || {};
@@ -374,35 +264,25 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// Admin eligible
-app.post("/api/admin-eligible", async (req, res) => {
-  try {
-    const { firstName, middleName, lastName, email } = req.body || {};
-    if (!firstName || !lastName || !email) return res.json({ success: true, eligible: false });
-
-    const eligible = await isAuthorizedAdmin(firstName, middleName, lastName, email);
-    return res.json({ success: true, eligible });
-  } catch (err) {
-    console.error("Error in POST /api/admin-eligible:", err.message || err);
-    return res.status(500).json({ success: false, eligible: false });
-  }
-});
-
 // =============================================================
-// ✅ OFFICE LIST: returns rowNumber + TRN + Fullname + Contact(optional)
-// Province filter uses column E (present province) based on your list
-// Columns you specified:
-// A No. | B TRN | C Fullname | D Present Address | E Province(present) | ... | L Registration Center
+// ✅ OFFICE LIST: Province filter uses COLUMN G (index 6)
+// Columns based on your sheet:
+// A No.
+// B TRN
+// C Fullname
+// D Contact No.
+// E Email Address
+// F Permanent Address
+// G Province   ✅ BASIS
 // =============================================================
 app.get("/api/failed-registrations", async (req, res) => {
   try {
     const provinceQ = String(req.query.province || "").trim().toLowerCase();
     const sheets = await getClient();
 
-    // Read wide enough range; update columns are D-L but list can be wider
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetFailed}!A2:L`,
+      range: `${sheetFailed}!A2:P`,
     });
 
     const rows = result.data.values || [];
@@ -415,21 +295,21 @@ app.get("/api/failed-registrations", async (req, res) => {
         const fullname = String(r[2] || "").trim();  // C
         if (!trn) return null;
 
-        const presentAddress = String(r[3] || "").trim();  // D
-        const provincePresent = String(r[4] || "").trim(); // E
+        const contactNo = String(r[3] || "").trim();        // D
+        const emailAddress = String(r[4] || "").trim();     // E
+        const permanentAddress = String(r[5] || "").trim(); // F
+        const province = String(r[6] || "").trim();         // ✅ G
 
-        if (provinceQ && provincePresent.toLowerCase() !== provinceQ) return null;
+        if (provinceQ && province.toLowerCase() !== provinceQ) return null;
 
-        // NOTE: Contact is not in your D-L update columns.
-        // If you store contact somewhere else, you can adjust here.
-        // For now we keep it blank (or you can display email/contact columns if exist).
         return {
           rowNumber,
           trn,
           fullname,
-          contactNo: "", // optional, display only
-          presentAddress,
-          province: provincePresent,
+          contactNo,
+          emailAddress,
+          permanentAddress,
+          province,
         };
       })
       .filter(Boolean);
@@ -442,16 +322,16 @@ app.get("/api/failed-registrations", async (req, res) => {
 });
 
 // =============================================================
-// ✅ OFFICE UPDATE: updates ONLY D–L for a given rowNumber
-// D Present Address
-// E Province (present)
-// F Date Contacted
-// G Means of Notification
-// H Recapture Status
-// I Recapture Schedule
-// J Province (registration)
-// K City/Municipality
-// L Registration Center
+// ✅ OFFICE UPDATE: updates ONLY H–P (Present Address..Registration Center)
+// H Present Address
+// I Province (present)
+// J Date Contacted (MM/DD/YYYY)
+// K Means of Notification
+// L Recapture Status
+// M Recapture Schedule (MM/DD/YYYY)
+// N Province (registration)
+// O City/Municipality
+// P Registration Center
 // =============================================================
 app.post("/api/failed-registration-update", async (req, res) => {
   try {
@@ -475,24 +355,24 @@ app.post("/api/failed-registration-update", async (req, res) => {
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${sheetFailed}!D${rn}:L${rn}`,
+      range: `${sheetFailed}!H${rn}:P${rn}`,
       valueInputOption: "RAW",
       requestBody: {
         values: [[
-          String(presentAddress || "").trim(),
-          String(provincePresent || "").trim(),
-          String(dateContacted || "").trim(),
-          String(meansOfNotification || "").trim(),
-          String(recaptureStatus || "").trim(),
-          String(recaptureSchedule || "").trim(),
-          String(provinceRegistration || "").trim(),
-          String(cityMunicipality || "").trim(),
-          String(registrationCenter || "").trim(),
+          String(presentAddress || "").trim(),         // H
+          String(provincePresent || "").trim(),        // I
+          String(dateContacted || "").trim(),          // J
+          String(meansOfNotification || "").trim(),    // K
+          String(recaptureStatus || "").trim(),        // L
+          String(recaptureSchedule || "").trim(),      // M
+          String(provinceRegistration || "").trim(),   // N
+          String(cityMunicipality || "").trim(),       // O
+          String(registrationCenter || "").trim(),     // P
         ]],
       },
     });
 
-    await addLog("FailedReg Update", "system", `Row ${rn} updated D-L`);
+    await addLog("FailedReg Update", "system", `Row ${rn} updated H-P`);
     return res.json({ success: true });
   } catch (err) {
     console.error("Error in POST /api/failed-registration-update:", err.message || err);
